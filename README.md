@@ -250,6 +250,7 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for detai
 
 ## Links
 
+- [MUXI SDKs](https://github.com/muxi-ai/sdks)
 - [MUXI Documentation](https://muxi.org/docs)
 - [API Reference](https://muxi.org/docs/api-reference)
 - [GitHub](https://github.com/muxi-ai/muxi-go)
