@@ -252,16 +252,6 @@ func (c *ServerClient) DeployFormationStreaming(ctx context.Context, req *Deploy
         return evtCh, errCh
     }
 
-    file, err := os.Open(req.BundlePath)
-    if err != nil {
-        errCh := make(chan error, 1)
-        evtCh := make(chan DeployEvent)
-        errCh <- fmt.Errorf("failed to open bundle: %w", err)
-        close(errCh)
-        close(evtCh)
-        return evtCh, errCh
-    }
-
     headers := map[string]string{
         "Content-Type":      "application/gzip",
         "X-Formation-ID":    req.FormationID,
@@ -270,7 +260,10 @@ func (c *ServerClient) DeployFormationStreaming(ctx context.Context, req *Deploy
     if req.Version != "" {
         headers["X-Formation-Version"] = req.Version
     }
-    return c.streamDeploy(ctx, http.MethodPost, c.baseURL+"/rpc/formations", file, headers)
+    openBody := func() (io.ReadCloser, error) {
+        return os.Open(req.BundlePath)
+    }
+    return c.streamDeploy(ctx, http.MethodPost, c.baseURL+"/rpc/formations", openBody, headers)
 }
 
 // UpdateFormation updates an existing formation (non-streaming)
@@ -329,16 +322,6 @@ func (c *ServerClient) UpdateFormationStreaming(ctx context.Context, id string, 
         return evtCh, errCh
     }
 
-    file, err := os.Open(req.BundlePath)
-    if err != nil {
-        errCh := make(chan error, 1)
-        evtCh := make(chan DeployEvent)
-        errCh <- fmt.Errorf("failed to open bundle: %w", err)
-        close(errCh)
-        close(evtCh)
-        return evtCh, errCh
-    }
-
     path := "/rpc/formations/" + id
     headers := map[string]string{
         "Content-Type":  "application/gzip",
@@ -348,7 +331,11 @@ func (c *ServerClient) UpdateFormationStreaming(ctx context.Context, id string, 
         headers["X-Formation-Version"] = req.Version
     }
 
-    return c.streamDeploy(ctx, http.MethodPut, c.baseURL+path, file, headers)
+    openBody := func() (io.ReadCloser, error) {
+        return os.Open(req.BundlePath)
+    }
+
+    return c.streamDeploy(ctx, http.MethodPut, c.baseURL+path, openBody, headers)
 }
 
 // StartFormation starts a formation
@@ -600,7 +587,7 @@ func mapStatusToError(status int, body io.Reader) error {
 }
 
 // streamDeploy executes an SSE deploy/update/start/restart/rollback and parses events
-func (c *ServerClient) streamDeploy(ctx context.Context, method, url string, body io.ReadCloser, headers map[string]string) (<-chan DeployEvent, <-chan error) {
+func (c *ServerClient) streamDeploy(ctx context.Context, method, url string, openBody func() (io.ReadCloser, error), headers map[string]string) (<-chan DeployEvent, <-chan error) {
     out := make(chan DeployEvent)
     errs := make(chan error, 1)
 
@@ -608,7 +595,14 @@ func (c *ServerClient) streamDeploy(ctx context.Context, method, url string, bod
         defer close(out)
         defer close(errs)
 
-        if body != nil {
+        var body io.ReadCloser
+        if openBody != nil {
+            var err error
+            body, err = openBody()
+            if err != nil {
+                errs <- fmt.Errorf("failed to open body: %w", err)
+                return
+            }
             defer body.Close()
         }
 
