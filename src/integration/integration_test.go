@@ -1,13 +1,15 @@
 //go:build integration
 // +build integration
 
-package muxi
+package integration
 
 import (
 	"context"
 	"os"
 	"testing"
 	"time"
+
+	muxi "github.com/muxi-ai/muxi-go"
 )
 
 // Required environment variables:
@@ -34,7 +36,7 @@ func TestServerSmoke(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	server := NewServerClient(&ServerConfig{
+	server := muxi.NewServerClient(&muxi.ServerConfig{
 		URL:        url,
 		KeyID:      keyID,
 		SecretKey:  secret,
@@ -77,7 +79,7 @@ func TestFormationSmoke(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	formation := NewFormationClient(&FormationConfig{
+	formation := muxi.NewFormationClient(&muxi.FormationConfig{
 		FormationID: formationID,
 		ServerURL:   base,
 		ClientKey:   clientKey,
