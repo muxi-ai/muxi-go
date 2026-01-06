@@ -608,6 +608,12 @@ func (c *ServerClient) streamDeploy(ctx context.Context, method, url string, bod
         defer close(out)
         defer close(errs)
 
+        var rc io.Closer
+        if closer, ok := body.(io.Closer); ok {
+            rc = closer
+            defer rc.Close()
+        }
+
         req, err := http.NewRequestWithContext(ctx, method, url, body)
         if err != nil {
             errs <- err
