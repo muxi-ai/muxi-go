@@ -86,6 +86,7 @@ CancelUpdate(ctx, id string) error
 // Logs
 GetFormationLogs(ctx, id string, opts *LogOptions) (*Logs, error)
 StreamFormationLogs(ctx, id string, opts *LogOptions) (<-chan LogLine, error)
+GetServerLogs(ctx, lines int) ([]string, error)
 
 // Server management
 Status(ctx) (*ServerStatus, error)
@@ -163,6 +164,7 @@ ListCredentials(ctx, userID string) (*CredentialList, error)
 GetCredential(ctx, credentialID, userID string) (*Credential, error)
 CreateCredential(ctx, userID string, req *CreateCredentialRequest) (*Credential, error)
 DeleteCredential(ctx, credentialID, userID string) error
+ListCredentialServices(ctx) (*CredentialServices, error)
 
 // Triggers
 GetTriggers(ctx) (*TriggerList, error)
@@ -176,6 +178,20 @@ GetSOP(ctx, name string) (*SOP, error)
 // Logging/Events
 StreamEvents(ctx, userID string) (<-chan Event, error)
 StreamLogs(ctx, opts *LogFilters) (<-chan LogEntry, error)
+
+// Memory buffers and stats
+GetMemoryBuffers(ctx) (*MemoryBufferList, error)
+GetBufferStats(ctx) (*BufferStats, error)
+ClearAllBuffers(ctx) error
+
+// Async / A2A / Logging config
+GetAsyncConfig(ctx) (*AsyncSettings, error)
+GetAsyncJobs(ctx) (*AsyncJobList, error)
+GetAsyncJob(ctx, jobID string) (*AsyncJob, error)
+CancelAsyncJob(ctx, jobID string) error
+GetA2AConfig(ctx) (*A2AConfig, error)
+GetLoggingConfig(ctx) (*LoggingConfig, error)
+GetLoggingDestinations(ctx) (*LoggingDestinations, error)
 
 // Admin-only
 GetOverlordConfig(ctx) (*OverlordConfig, error)

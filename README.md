@@ -2,6 +2,8 @@
 
 Official Go SDK for [MUXI](https://muxi.ai) - the infrastructure layer for AI agents.
 
+> Need deeper usage notes? See [USER_GUIDE.md](./USER_GUIDE.md).
+
 ## Installation
 
 ```bash
