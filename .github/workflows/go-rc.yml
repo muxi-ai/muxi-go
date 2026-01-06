@@ -12,6 +12,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
+          cache-dependency-path: src/go.sum
+          cache-dependency-path: src/go.sum
       - name: Unit tests
         working-directory: src
         run: go test ./...
@@ -24,6 +26,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
+          cache-dependency-path: src/go.sum
+          cache-dependency-path: src/go.sum
       - name: Integration tests
         env:
           MUXI_SDK_E2E_SERVER_URL: ${{ secrets.MUXI_SDK_E2E_SERVER_URL }}
