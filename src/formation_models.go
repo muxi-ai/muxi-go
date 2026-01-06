@@ -349,6 +349,97 @@ type MemoryBuffersResponse struct {
 	Timestamp int64                `json:"-"`
 }
 
+// Async / A2A / Logging
+type AsyncSettingsResponse struct {
+	ThresholdSeconds int    `json:"threshold_seconds"`
+	EnableEstimation bool   `json:"enable_estimation"`
+	WebhookURL       string `json:"webhook_url,omitempty"`
+	WebhookRetries   int    `json:"webhook_retries"`
+	WebhookTimeout   int    `json:"webhook_timeout"`
+	RequestID        string `json:"-"`
+	Timestamp        int64  `json:"-"`
+}
+
+type AsyncJob struct {
+	ID        string                 `json:"id"`
+	UserID    string                 `json:"user_id"`
+	Status    string                 `json:"status"`
+	CreatedAt time.Time              `json:"created_at"`
+	Result    map[string]interface{} `json:"result,omitempty"`
+	RequestID string                 `json:"-"`
+	Timestamp int64                  `json:"-"`
+}
+
+type AsyncJobsResponse struct {
+	Jobs      []AsyncJob `json:"jobs"`
+	Count     int        `json:"count"`
+	RequestID string     `json:"-"`
+	Timestamp int64      `json:"-"`
+}
+
+type AsyncJobDetailResponse = AsyncJob
+
+type A2AConfigResponse struct {
+	Inbound struct {
+		Enabled bool `json:"enabled"`
+	} `json:"inbound"`
+	Outbound struct {
+		Enabled               bool     `json:"enabled"`
+		DefaultRetryAttempts  int      `json:"default_retry_attempts"`
+		DefaultTimeoutSeconds int      `json:"default_timeout_seconds"`
+		AllowedFormations     []string `json:"allowed_formations,omitempty"`
+	} `json:"outbound"`
+	RequestID string `json:"-"`
+	Timestamp int64  `json:"-"`
+}
+
+type LoggingConfigResponse struct {
+	System       map[string]interface{} `json:"system"`
+	Conversation map[string]interface{} `json:"conversation"`
+	RequestID    string                 `json:"-"`
+	Timestamp    int64                  `json:"-"`
+}
+
+type LoggingDestination struct {
+	ID          string `json:"id"`
+	Transport   string `json:"transport"`
+	Destination string `json:"destination,omitempty"`
+	Level       string `json:"level"`
+	Format      string `json:"format"`
+	Enabled     bool   `json:"enabled"`
+}
+
+type LoggingConversationDestinations struct {
+	Destinations []LoggingDestination `json:"destinations"`
+	Count        int                  `json:"count"`
+}
+
+type LoggingDestinationsResponse struct {
+	System       LoggingSystemConfig             `json:"system"`
+	Conversation LoggingConversationDestinations `json:"conversation"`
+	RequestID    string                          `json:"-"`
+	Timestamp    int64                           `json:"-"`
+}
+
+type LoggingSystemConfig struct {
+	Level       string `json:"level"`
+	Destination string `json:"destination"`
+}
+
+// Credential services
+type CredentialService struct {
+	Service     string `json:"service"`
+	ServerID    string `json:"server_id"`
+	Description string `json:"description"`
+}
+
+type CredentialServicesResponse struct {
+	Services  []CredentialService `json:"services"`
+	Count     int                 `json:"count"`
+	RequestID string              `json:"-"`
+	Timestamp int64               `json:"-"`
+}
+
 // Scheduler
 type SchedulerConfigResponse struct {
 	// fields per API; keep generic map for forward compatibility

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -302,6 +303,15 @@ func (c *FormationClient) ClearUserBuffer(ctx context.Context, userID string) (*
 	return decodeFormation[BufferClearedResponse](resp)
 }
 
+func (c *FormationClient) ClearAllBuffers(ctx context.Context) (*BufferClearedResponse, error) {
+	resp, err := c.do(ctx, http.MethodDelete, "/memory/buffer", nil, true, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[BufferClearedResponse](resp)
+}
+
 func (c *FormationClient) ClearSessionBuffer(ctx context.Context, userID, sessionID string) (*SessionBufferClearedResponse, error) {
 	path := "/memory/buffer/" + sessionID
 	if userID != "" {
@@ -317,6 +327,10 @@ func (c *FormationClient) ClearSessionBuffer(ctx context.Context, userID, sessio
 
 func (c *FormationClient) GetMemoryBuffers(ctx context.Context) (*MemoryBuffersResponse, error) {
 	return formationRequest[MemoryBuffersResponse](ctx, c, http.MethodGet, "/memory/buffers", nil, true, "")
+}
+
+func (c *FormationClient) GetBufferStats(ctx context.Context) (*BufferStatsResponse, error) {
+	return formationRequest[BufferStatsResponse](ctx, c, http.MethodGet, "/memory/stats", nil, true, "")
 }
 
 // Scheduler
@@ -355,6 +369,40 @@ func (c *FormationClient) CreateSchedulerJob(ctx context.Context, jobType, sched
 
 func (c *FormationClient) DeleteSchedulerJob(ctx context.Context, jobID string) error {
 	return formationRequestNoBody(ctx, c, http.MethodDelete, "/scheduler/jobs/"+jobID, nil, true, "")
+}
+
+// Async / A2A / Logging
+func (c *FormationClient) GetAsyncConfig(ctx context.Context) (*AsyncSettingsResponse, error) {
+	return formationRequest[AsyncSettingsResponse](ctx, c, http.MethodGet, "/async", nil, true, "")
+}
+
+func (c *FormationClient) GetAsyncJobs(ctx context.Context) (*AsyncJobsResponse, error) {
+	return formationRequest[AsyncJobsResponse](ctx, c, http.MethodGet, "/async/jobs", nil, true, "")
+}
+
+func (c *FormationClient) GetAsyncJob(ctx context.Context, jobID string) (*AsyncJobDetailResponse, error) {
+	return formationRequest[AsyncJobDetailResponse](ctx, c, http.MethodGet, "/async/jobs/"+jobID, nil, true, "")
+}
+
+func (c *FormationClient) CancelAsyncJob(ctx context.Context, jobID string) error {
+	return formationRequestNoBody(ctx, c, http.MethodDelete, "/async/jobs/"+jobID, nil, true, "")
+}
+
+func (c *FormationClient) GetA2AConfig(ctx context.Context) (*A2AConfigResponse, error) {
+	return formationRequest[A2AConfigResponse](ctx, c, http.MethodGet, "/a2a", nil, true, "")
+}
+
+func (c *FormationClient) GetLoggingConfig(ctx context.Context) (*LoggingConfigResponse, error) {
+	return formationRequest[LoggingConfigResponse](ctx, c, http.MethodGet, "/logging", nil, true, "")
+}
+
+func (c *FormationClient) GetLoggingDestinations(ctx context.Context) (*LoggingDestinationsResponse, error) {
+	return formationRequest[LoggingDestinationsResponse](ctx, c, http.MethodGet, "/logging/destinations", nil, true, "")
+}
+
+// Credential services
+func (c *FormationClient) ListCredentialServices(ctx context.Context) (*CredentialServicesResponse, error) {
+	return formationRequest[CredentialServicesResponse](ctx, c, http.MethodGet, "/credentials/services", nil, true, "")
 }
 
 // User identifiers
@@ -399,12 +447,16 @@ func (c *FormationClient) GetSession(ctx context.Context, sessionID, userID stri
 	return formationRequest[SessionDetailResponse](ctx, c, http.MethodGet, "/sessions/"+sessionID, nil, false, userID)
 }
 
-// Events streaming
-func (c *FormationClient) StreamEvents(ctx context.Context, userID string) (<-chan LogStreamEvent, <-chan error) {
-	path := "/events"
-	if userID != "" {
-		path += "?user_id=" + userID
-	}
+type LogStreamFilters struct {
+	UserID    string
+	SessionID string
+	RequestID string
+	AgentID   string
+	Level     string
+	EventType string
+}
+
+func (c *FormationClient) streamLogEvents(ctx context.Context, path string, headers map[string]string) (<-chan LogStreamEvent, <-chan error) {
 	out := make(chan LogStreamEvent)
 	errs := make(chan error, 1)
 
@@ -423,6 +475,9 @@ func (c *FormationClient) StreamEvents(ctx context.Context, userID string) (<-ch
 		}
 		req.Header.Set("X-MUXI-CLIENT-KEY", c.clientKey)
 		req.Header.Set("Accept", "text/event-stream")
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
 
 		baseTr := c.httpClient.Transport
 		if baseTr == nil {
@@ -484,6 +539,16 @@ func (c *FormationClient) StreamEvents(ctx context.Context, userID string) (<-ch
 	return out, errs
 }
 
+// Events streaming
+func (c *FormationClient) StreamEvents(ctx context.Context, userID string) (<-chan LogStreamEvent, <-chan error) {
+	path := "/events"
+	if userID != "" {
+		path += "?user_id=" + userID
+	}
+
+	return c.streamLogEvents(ctx, path, nil)
+}
+
 // ResolveUser resolves an identifier
 func (c *FormationClient) ResolveUser(ctx context.Context, identifier string, createUser bool) (*UserResolveResponse, error) {
 	body := UserResolveRequest{Identifier: identifier, CreateUser: createUser}
@@ -493,6 +558,46 @@ func (c *FormationClient) ResolveUser(ctx context.Context, identifier string, cr
 	}
 	defer resp.Body.Close()
 	return decodeFormation[UserResolveResponse](resp)
+}
+
+// StreamRequest streams SSE events for a specific request
+func (c *FormationClient) StreamRequest(ctx context.Context, userID, sessionID, requestID string) (<-chan LogStreamEvent, <-chan error) {
+	path := "/stream/" + sessionID + "/" + requestID
+	headers := map[string]string{}
+	if userID != "" {
+		headers["X-User-ID"] = userID
+	}
+	return c.streamLogEvents(ctx, path, headers)
+}
+
+// StreamLogs streams runtime logs with optional filters
+func (c *FormationClient) StreamLogs(ctx context.Context, filters *LogStreamFilters) (<-chan LogStreamEvent, <-chan error) {
+	params := url.Values{}
+	if filters != nil {
+		if filters.UserID != "" {
+			params.Set("user_id", filters.UserID)
+		}
+		if filters.SessionID != "" {
+			params.Set("session_id", filters.SessionID)
+		}
+		if filters.RequestID != "" {
+			params.Set("request_id", filters.RequestID)
+		}
+		if filters.AgentID != "" {
+			params.Set("agent_id", filters.AgentID)
+		}
+		if filters.Level != "" {
+			params.Set("level", filters.Level)
+		}
+		if filters.EventType != "" {
+			params.Set("event_type", filters.EventType)
+		}
+	}
+	path := "/logs/stream"
+	if qs := params.Encode(); qs != "" {
+		path += "?" + qs
+	}
+	return c.streamLogEvents(ctx, path, nil)
 }
 
 // Triggers
