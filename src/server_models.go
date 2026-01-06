@@ -122,3 +122,47 @@ type LogsResponse struct {
         Stderr []string `json:"stderr"`
     } `json:"logs"`
 }
+
+// LogEvent represents a single log line in streaming mode
+type LogEvent struct {
+    Stream string `json:"stream"`
+    Line   string `json:"line"`
+    Time   string `json:"time,omitempty"`
+}
+
+// Deploy streaming events
+type DeployProgressEvent struct {
+    Stage       string `json:"stage"`
+    Message     string `json:"message"`
+    Progress    int    `json:"progress"`
+    URL         string `json:"url"`
+    Version     string `json:"version"`
+    Attempt     int    `json:"attempt"`
+    MaxAttempts int    `json:"max_attempts"`
+    StagingPort int    `json:"staging_port"`
+}
+
+type DeployCompleteEvent struct {
+    FormationID     string `json:"formation_id"`
+    Port            int    `json:"port"`
+    Status          string `json:"status"`
+    URL             string `json:"url"`
+    HealthURL       string `json:"health_url"`
+    PID             int    `json:"pid"`
+    PreviousVersion string `json:"previous_version,omitempty"`
+    NewVersion      string `json:"new_version,omitempty"`
+}
+
+type DeployErrorEvent struct {
+    Error          string `json:"error"`
+    Message        string `json:"message"`
+    Stage          string `json:"stage"`
+    RollbackStatus string `json:"rollback_status,omitempty"`
+}
+
+// DeployEvent is a typed union for streaming
+type DeployEvent struct {
+    Progress *DeployProgressEvent
+    Complete *DeployCompleteEvent
+    Error    *DeployErrorEvent
+}

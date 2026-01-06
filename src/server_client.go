@@ -241,6 +241,38 @@ func (c *ServerClient) DeployFormation(ctx context.Context, req *DeployRequest) 
     return &deploy, nil
 }
 
+// DeployFormationStreaming deploys with SSE progress
+func (c *ServerClient) DeployFormationStreaming(ctx context.Context, req *DeployRequest) (<-chan DeployEvent, <-chan error) {
+    if req == nil {
+        errCh := make(chan error, 1)
+        evtCh := make(chan DeployEvent)
+        errCh <- fmt.Errorf("DeployRequest is required")
+        close(errCh)
+        close(evtCh)
+        return evtCh, errCh
+    }
+
+    file, err := os.Open(req.BundlePath)
+    if err != nil {
+        errCh := make(chan error, 1)
+        evtCh := make(chan DeployEvent)
+        errCh <- fmt.Errorf("failed to open bundle: %w", err)
+        close(errCh)
+        close(evtCh)
+        return evtCh, errCh
+    }
+
+    headers := map[string]string{
+        "Content-Type":      "application/gzip",
+        "X-Formation-ID":    req.FormationID,
+        "Authorization":     BuildAuthHeader(c.keyID, c.secretKey, http.MethodPost, "/rpc/formations"),
+    }
+    if req.Version != "" {
+        headers["X-Formation-Version"] = req.Version
+    }
+    return c.streamDeploy(ctx, http.MethodPost, c.baseURL+"/rpc/formations", file, headers)
+}
+
 // UpdateFormation updates an existing formation (non-streaming)
 func (c *ServerClient) UpdateFormation(ctx context.Context, id string, req *DeployRequest) (*DeployResponse, error) {
     if req == nil {
@@ -286,6 +318,39 @@ func (c *ServerClient) UpdateFormation(ctx context.Context, id string, req *Depl
     return &update, nil
 }
 
+// UpdateFormationStreaming updates with SSE progress
+func (c *ServerClient) UpdateFormationStreaming(ctx context.Context, id string, req *DeployRequest) (<-chan DeployEvent, <-chan error) {
+    if req == nil {
+        errCh := make(chan error, 1)
+        evtCh := make(chan DeployEvent)
+        errCh <- fmt.Errorf("DeployRequest is required")
+        close(errCh)
+        close(evtCh)
+        return evtCh, errCh
+    }
+
+    file, err := os.Open(req.BundlePath)
+    if err != nil {
+        errCh := make(chan error, 1)
+        evtCh := make(chan DeployEvent)
+        errCh <- fmt.Errorf("failed to open bundle: %w", err)
+        close(errCh)
+        close(evtCh)
+        return evtCh, errCh
+    }
+
+    path := "/rpc/formations/" + id
+    headers := map[string]string{
+        "Content-Type":  "application/gzip",
+        "Authorization": BuildAuthHeader(c.keyID, c.secretKey, http.MethodPut, path),
+    }
+    if req.Version != "" {
+        headers["X-Formation-Version"] = req.Version
+    }
+
+    return c.streamDeploy(ctx, http.MethodPut, c.baseURL+path, file, headers)
+}
+
 // StartFormation starts a formation
 func (c *ServerClient) StartFormation(ctx context.Context, id string) error {
     resp, err := c.do(ctx, http.MethodPost, "/rpc/formations/"+id+"/start", nil, "")
@@ -296,6 +361,15 @@ func (c *ServerClient) StartFormation(ctx context.Context, id string) error {
     return checkServerResponse(resp)
 }
 
+// StartFormationStreaming starts with SSE progress
+func (c *ServerClient) StartFormationStreaming(ctx context.Context, id string) (<-chan DeployEvent, <-chan error) {
+    path := "/rpc/formations/" + id + "/start"
+    headers := map[string]string{
+        "Authorization": BuildAuthHeader(c.keyID, c.secretKey, http.MethodPost, path),
+    }
+    return c.streamDeploy(ctx, http.MethodPost, c.baseURL+path, nil, headers)
+}
+
 // RestartFormation restarts a formation
 func (c *ServerClient) RestartFormation(ctx context.Context, id string) error {
     resp, err := c.do(ctx, http.MethodPost, "/rpc/formations/"+id+"/restart", nil, "")
@@ -304,6 +378,15 @@ func (c *ServerClient) RestartFormation(ctx context.Context, id string) error {
     }
     defer resp.Body.Close()
     return checkServerResponse(resp)
+}
+
+// RestartFormationStreaming restarts with SSE progress
+func (c *ServerClient) RestartFormationStreaming(ctx context.Context, id string) (<-chan DeployEvent, <-chan error) {
+    path := "/rpc/formations/" + id + "/restart"
+    headers := map[string]string{
+        "Authorization": BuildAuthHeader(c.keyID, c.secretKey, http.MethodPost, path),
+    }
+    return c.streamDeploy(ctx, http.MethodPost, c.baseURL+path, nil, headers)
 }
 
 // RollbackFormation rolls back a formation
@@ -323,6 +406,15 @@ func (c *ServerClient) RollbackFormation(ctx context.Context, id string) (*Rollb
         return nil, err
     }
     return &rb, nil
+}
+
+// RollbackFormationStreaming rolls back with SSE progress
+func (c *ServerClient) RollbackFormationStreaming(ctx context.Context, id string) (<-chan DeployEvent, <-chan error) {
+    path := "/rpc/formations/" + id + "/rollback"
+    headers := map[string]string{
+        "Authorization": BuildAuthHeader(c.keyID, c.secretKey, http.MethodPost, path),
+    }
+    return c.streamDeploy(ctx, http.MethodPost, c.baseURL+path, nil, headers)
 }
 
 // CancelUpdate cancels an ongoing update
@@ -354,6 +446,16 @@ func (c *ServerClient) GetFormationLogs(ctx context.Context, id string, lines in
         return nil, err
     }
     return &logs, nil
+}
+
+// StreamFormationLogs streams logs via SSE; returns channel of LogEvent
+func (c *ServerClient) StreamFormationLogs(ctx context.Context, id string, stream string) (<-chan LogEvent, <-chan error) {
+    path := fmt.Sprintf("/rpc/formations/%s/logs?stream=%s&follow=true", id, stream)
+    headers := map[string]string{
+        "Accept":       "text/event-stream",
+        "Authorization": BuildAuthHeader(c.keyID, c.secretKey, http.MethodGet, fmt.Sprintf("/rpc/formations/%s/logs", id)),
+    }
+    return c.streamLogs(ctx, c.baseURL+path, headers)
 }
 
 // --- internal helpers ---
@@ -495,4 +597,83 @@ func mapStatusToError(status int, body io.Reader) error {
     default:
         return &ServerError{newMuxiError(ErrServerError, fmt.Sprintf("server error: %d", status), status)}
     }
+}
+
+// streamDeploy executes an SSE deploy/update/start/restart/rollback and parses events
+func (c *ServerClient) streamDeploy(ctx context.Context, method, url string, body io.Reader, headers map[string]string) (<-chan DeployEvent, <-chan error) {
+    out := make(chan DeployEvent)
+    errs := make(chan error, 1)
+
+    go func() {
+        defer close(out)
+        defer close(errs)
+
+        req, err := http.NewRequestWithContext(ctx, method, url, body)
+        if err != nil {
+            errs <- err
+            return
+        }
+        req.Header.Set("Accept", "text/event-stream")
+        for k, v := range headers {
+            req.Header.Set(k, v)
+        }
+
+        client := &http.Client{Timeout: 10 * time.Minute, Transport: newSDKTransport(http.DefaultTransport)}
+        resp, err := client.Do(req)
+        if err != nil {
+            errs <- &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
+            return
+        }
+        defer resp.Body.Close()
+
+        if resp.StatusCode >= 400 {
+            errs <- mapStatusToError(resp.StatusCode, resp.Body)
+            return
+        }
+
+        if err := parseDeploySSE(resp.Body, out); err != nil {
+            errs <- err
+        }
+    }()
+
+    return out, errs
+}
+
+// streamLogs streams log events via SSE
+func (c *ServerClient) streamLogs(ctx context.Context, url string, headers map[string]string) (<-chan LogEvent, <-chan error) {
+    out := make(chan LogEvent)
+    errs := make(chan error, 1)
+
+    go func() {
+        defer close(out)
+        defer close(errs)
+
+        req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+        if err != nil {
+            errs <- err
+            return
+        }
+        for k, v := range headers {
+            req.Header.Set(k, v)
+        }
+
+        client := &http.Client{Timeout: 0, Transport: newSDKTransport(http.DefaultTransport)}
+        resp, err := client.Do(req)
+        if err != nil {
+            errs <- &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
+            return
+        }
+        defer resp.Body.Close()
+
+        if resp.StatusCode >= 400 {
+            errs <- mapStatusToError(resp.StatusCode, resp.Body)
+            return
+        }
+
+        if err := parseLogSSE(resp.Body, out); err != nil {
+            errs <- err
+        }
+    }()
+
+    return out, errs
 }
