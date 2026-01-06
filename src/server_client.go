@@ -440,7 +440,7 @@ func (c *ServerClient) StreamFormationLogs(ctx context.Context, id string, strea
     path := fmt.Sprintf("/rpc/formations/%s/logs?stream=%s&follow=true", id, stream)
     headers := map[string]string{
         "Accept":       "text/event-stream",
-        "Authorization": BuildAuthHeader(c.keyID, c.secretKey, http.MethodGet, fmt.Sprintf("/rpc/formations/%s/logs", id)),
+        "Authorization": BuildAuthHeader(c.keyID, c.secretKey, http.MethodGet, path),
     }
     return c.streamLogs(ctx, c.baseURL+path, headers)
 }
@@ -616,7 +616,11 @@ func (c *ServerClient) streamDeploy(ctx context.Context, method, url string, ope
             req.Header.Set(k, v)
         }
 
-        client := &http.Client{Timeout: 10 * time.Minute, Transport: newSDKTransport(http.DefaultTransport)}
+        baseTr := c.httpClient.Transport
+        if baseTr == nil {
+            baseTr = http.DefaultTransport
+        }
+        client := &http.Client{Timeout: 10 * time.Minute, Transport: baseTr}
         resp, err := client.Do(req)
         if err != nil {
             errs <- &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
@@ -655,7 +659,11 @@ func (c *ServerClient) streamLogs(ctx context.Context, url string, headers map[s
             req.Header.Set(k, v)
         }
 
-        client := &http.Client{Timeout: 0, Transport: newSDKTransport(http.DefaultTransport)}
+        baseTr := c.httpClient.Transport
+        if baseTr == nil {
+            baseTr = http.DefaultTransport
+        }
+        client := &http.Client{Timeout: 0, Transport: baseTr}
         resp, err := client.Do(req)
         if err != nil {
             errs <- &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}

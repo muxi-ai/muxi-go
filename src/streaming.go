@@ -12,6 +12,7 @@ import (
 // Emits a final chunk {Type: "done"} when stream ends cleanly
 func parseChatSSE(r io.Reader, out chan<- ChatChunk) error {
     scanner := bufio.NewScanner(r)
+    scanner.Buffer(make([]byte, 0, 256*1024), 10*1024*1024)
     var dataBuf []string
     var eventType string
 
@@ -75,6 +76,7 @@ func parseChatSSE(r io.Reader, out chan<- ChatChunk) error {
 // parseDeploySSE parses deploy/update/start/restart/rollback SSE
 func parseDeploySSE(r io.Reader, out chan<- DeployEvent) error {
     scanner := bufio.NewScanner(r)
+    scanner.Buffer(make([]byte, 0, 256*1024), 10*1024*1024)
     var dataBuf []string
     var eventType string
 
@@ -144,6 +146,7 @@ func parseDeploySSE(r io.Reader, out chan<- DeployEvent) error {
 // parseLogSSE parses log streaming events
 func parseLogSSE(r io.Reader, out chan<- LogEvent) error {
     scanner := bufio.NewScanner(r)
+    scanner.Buffer(make([]byte, 0, 256*1024), 10*1024*1024)
     var dataBuf []string
     var eventType string
 
