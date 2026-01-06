@@ -13,7 +13,6 @@ import (
 func parseChatSSE(r io.Reader, out chan<- ChatChunk) error {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 256*1024), 10*1024*1024)
-	scanner.Buffer(make([]byte, 0, 256*1024), 10*1024*1024)
 	var dataBuf []string
 	var eventType string
 
