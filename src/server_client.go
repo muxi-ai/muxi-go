@@ -600,7 +600,7 @@ func mapStatusToError(status int, body io.Reader) error {
 }
 
 // streamDeploy executes an SSE deploy/update/start/restart/rollback and parses events
-func (c *ServerClient) streamDeploy(ctx context.Context, method, url string, body io.Reader, headers map[string]string) (<-chan DeployEvent, <-chan error) {
+func (c *ServerClient) streamDeploy(ctx context.Context, method, url string, body io.ReadCloser, headers map[string]string) (<-chan DeployEvent, <-chan error) {
     out := make(chan DeployEvent)
     errs := make(chan error, 1)
 
@@ -608,10 +608,8 @@ func (c *ServerClient) streamDeploy(ctx context.Context, method, url string, bod
         defer close(out)
         defer close(errs)
 
-        var rc io.Closer
-        if closer, ok := body.(io.Closer); ok {
-            rc = closer
-            defer rc.Close()
+        if body != nil {
+            defer body.Close()
         }
 
         req, err := http.NewRequestWithContext(ctx, method, url, body)
