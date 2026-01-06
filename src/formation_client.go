@@ -499,8 +499,12 @@ func (c *FormationClient) streamChat(ctx context.Context, path string, req inter
             httpReq.Header.Set("X-Muxi-User-ID", userID)
         }
 
-        // no timeout for streaming
-        streamClient := &http.Client{Transport: newSDKTransport(http.DefaultTransport)}
+        // no timeout for streaming; reuse configured transport
+        baseTr := c.httpClient.Transport
+        if baseTr == nil {
+            baseTr = http.DefaultTransport
+        }
+        streamClient := &http.Client{Timeout: 0, Transport: baseTr}
         resp, err := streamClient.Do(httpReq)
         if err != nil {
             errs <- &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
