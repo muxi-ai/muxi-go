@@ -1,1 +1,17 @@
 .DS_Store
+
+# Go build outputs
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.*
+coverage.out
+bin/
+
+# Editor/IDE metadata
+.idea/
+.vscode/
