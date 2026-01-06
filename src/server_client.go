@@ -25,7 +25,7 @@ type ServerConfig struct {
 	Logger     *log.Logger
 }
 
-// ServerClient is an HTTP client for MUXI Server (management API)
+// ServerClient is an HTTP client for the MUXI Server management API (formation lifecycle, logs, health).
 type ServerClient struct {
 	baseURL    string
 	keyID      string

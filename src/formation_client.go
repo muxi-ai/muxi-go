@@ -251,7 +251,7 @@ func (c *FormationClient) GetRequestStatus(ctx context.Context, requestID, userI
 	return formationRequest[RequestStatusResponse](ctx, c, http.MethodGet, "/requests/"+requestID, nil, false, userID)
 }
 
-// Memory
+// Memory APIs
 func (c *FormationClient) GetMemoryConfig(ctx context.Context) (*MemoryConfigResponse, error) {
 	return formationRequest[MemoryConfigResponse](ctx, c, http.MethodGet, "/memory", nil, true, "")
 }
@@ -274,6 +274,7 @@ func (c *FormationClient) AddMemory(ctx context.Context, userID, memType, detail
 	return decodeFormation[Memory](resp)
 }
 
+// DeleteMemory removes a memory by ID, optionally scoped to a user.
 func (c *FormationClient) DeleteMemory(ctx context.Context, userID, memoryID string) error {
 	path := "/memories/" + memoryID
 	if userID != "" {
@@ -290,6 +291,7 @@ func (c *FormationClient) GetUserBuffer(ctx context.Context, userID string) (*Us
 	return formationRequest[UserBufferResponse](ctx, c, http.MethodGet, path, nil, false, "")
 }
 
+// ClearUserBuffer clears all buffered content for a user (admin-only when no user ID).
 func (c *FormationClient) ClearUserBuffer(ctx context.Context, userID string) (*BufferClearedResponse, error) {
 	path := "/memory/buffer"
 	if userID != "" {
@@ -303,6 +305,7 @@ func (c *FormationClient) ClearUserBuffer(ctx context.Context, userID string) (*
 	return decodeFormation[BufferClearedResponse](resp)
 }
 
+// ClearAllBuffers clears all buffers across users (admin).
 func (c *FormationClient) ClearAllBuffers(ctx context.Context) (*BufferClearedResponse, error) {
 	resp, err := c.do(ctx, http.MethodDelete, "/memory/buffer", nil, true, "")
 	if err != nil {
@@ -312,6 +315,7 @@ func (c *FormationClient) ClearAllBuffers(ctx context.Context) (*BufferClearedRe
 	return decodeFormation[BufferClearedResponse](resp)
 }
 
+// ClearSessionBuffer clears a single session buffer, optionally scoped to a user.
 func (c *FormationClient) ClearSessionBuffer(ctx context.Context, userID, sessionID string) (*SessionBufferClearedResponse, error) {
 	path := "/memory/buffer/" + sessionID
 	if userID != "" {
@@ -329,11 +333,12 @@ func (c *FormationClient) GetMemoryBuffers(ctx context.Context) (*MemoryBuffersR
 	return formationRequest[MemoryBuffersResponse](ctx, c, http.MethodGet, "/memory/buffers", nil, true, "")
 }
 
+// GetBufferStats returns aggregate buffer stats (admin).
 func (c *FormationClient) GetBufferStats(ctx context.Context) (*BufferStatsResponse, error) {
 	return formationRequest[BufferStatsResponse](ctx, c, http.MethodGet, "/memory/stats", nil, true, "")
 }
 
-// Scheduler
+// Scheduler APIs
 func (c *FormationClient) GetSchedulerConfig(ctx context.Context) (*SchedulerConfigResponse, error) {
 	return formationRequest[SchedulerConfigResponse](ctx, c, http.MethodGet, "/scheduler/config", nil, true, "")
 }
