@@ -255,6 +255,178 @@ type RequestStatusResponse struct {
 	Timestamp   int64      `json:"-"`
 }
 
+// Memory
+type MemoryContent struct {
+	Type   string `json:"type"`
+	Detail string `json:"detail"`
+}
+
+type Memory struct {
+	ID        string        `json:"id"`
+	UserID    string        `json:"user_id,omitempty"`
+	Content   MemoryContent `json:"content"`
+	CreatedAt time.Time     `json:"created_at"`
+	RequestID string        `json:"-"`
+	Timestamp int64         `json:"-"`
+}
+
+type MemoriesListResponse struct {
+	Memories  []Memory `json:"memories"`
+	Count     int      `json:"count"`
+	RequestID string   `json:"-"`
+	Timestamp int64    `json:"-"`
+}
+
+type MemoryConfigResponse struct {
+	Buffer struct {
+		Size         int     `json:"size"`
+		Multiplier   float64 `json:"multiplier"`
+		VectorSearch bool    `json:"vector_search"`
+	} `json:"buffer"`
+	Working struct {
+		MaxMemoryMB     int `json:"max_memory_mb"`
+		FIFOIntervalMin int `json:"fifo_interval_min"`
+	} `json:"working"`
+	RequestID string `json:"-"`
+	Timestamp int64  `json:"-"`
+}
+
+type BufferSession struct {
+	SessionID    string    `json:"session_id"`
+	MessageCount int       `json:"message_count"`
+	LastActivity time.Time `json:"last_activity"`
+}
+
+type UserBufferResponse struct {
+	UserID        string          `json:"user_id"`
+	TotalMessages int             `json:"total_messages"`
+	Sessions      []BufferSession `json:"sessions"`
+	BufferSizeKB  float64         `json:"buffer_size_kb"`
+	RequestID     string          `json:"-"`
+	Timestamp     int64           `json:"-"`
+}
+
+type BufferStatsResponse struct {
+	TotalEntries  int     `json:"total_entries"`
+	TotalUsers    int     `json:"total_users"`
+	TotalSessions int     `json:"total_sessions"`
+	BufferSizeKB  float64 `json:"buffer_size_kb"`
+	MaxSize       int     `json:"max_size"`
+	Utilization   float64 `json:"utilization"`
+	RequestID     string  `json:"-"`
+	Timestamp     int64   `json:"-"`
+}
+
+type BufferClearedResponse struct {
+	Message         string `json:"message"`
+	UserID          string `json:"user_id,omitempty"`
+	MessagesCleared int    `json:"messages_cleared"`
+	SessionsCleared int    `json:"sessions_cleared"`
+	RequestID       string `json:"-"`
+	Timestamp       int64  `json:"-"`
+}
+
+type SessionBufferClearedResponse struct {
+	Message         string `json:"message"`
+	UserID          string `json:"user_id,omitempty"`
+	SessionID       string `json:"session_id"`
+	MessagesCleared int    `json:"messages_cleared"`
+	RequestID       string `json:"-"`
+	Timestamp       int64  `json:"-"`
+}
+
+type MemoryBufferStatus struct {
+	UserID       string `json:"user_id"`
+	SessionCount int    `json:"session_count"`
+	MessageCount int    `json:"message_count"`
+	SizeBytes    int    `json:"size_bytes"`
+}
+
+type MemoryBuffersResponse struct {
+	Buffers   []MemoryBufferStatus `json:"buffers"`
+	Count     int                  `json:"count"`
+	RequestID string               `json:"-"`
+	Timestamp int64                `json:"-"`
+}
+
+// Scheduler
+type SchedulerConfigResponse struct {
+	// fields per API; keep generic map for forward compatibility
+	Config    map[string]interface{} `json:"config"`
+	RequestID string                 `json:"-"`
+	Timestamp int64                  `json:"-"`
+}
+
+type SchedulerJob struct {
+	ID           string    `json:"id"`
+	Type         string    `json:"type"`
+	Schedule     string    `json:"schedule,omitempty"`
+	RunAt        string    `json:"run_at,omitempty"`
+	Message      string    `json:"message"`
+	UserID       string    `json:"user_id"`
+	Enabled      bool      `json:"enabled"`
+	NextRun      time.Time `json:"next_run,omitempty"`
+	LastRun      time.Time `json:"last_run,omitempty"`
+	FailureCount int       `json:"failure_count"`
+}
+
+type SchedulerJobsResponse struct {
+	Jobs      []SchedulerJob `json:"jobs"`
+	Count     int            `json:"count"`
+	RequestID string         `json:"-"`
+	Timestamp int64          `json:"-"`
+}
+
+type SchedulerJobDetail = SchedulerJob
+
+// User identifiers
+type UserIdentifiersResponse struct {
+	Identifiers []interface{} `json:"identifiers"`
+	Count       int           `json:"count"`
+	RequestID   string        `json:"-"`
+	Timestamp   int64         `json:"-"`
+}
+
+// Overlord / LLM
+type OverlordConfigResponse struct {
+	Persona       string                 `json:"persona,omitempty"`
+	SystemNote    string                 `json:"system_note,omitempty"`
+	Clarification map[string]interface{} `json:"clarification,omitempty"`
+	Workflow      map[string]interface{} `json:"workflow,omitempty"`
+	Response      map[string]interface{} `json:"response,omitempty"`
+	LLM           map[string]interface{} `json:"llm,omitempty"`
+	Caching       map[string]interface{} `json:"caching,omitempty"`
+	RequestID     string                 `json:"-"`
+	Timestamp     int64                  `json:"-"`
+}
+
+type OverlordPersonaResponse struct {
+	Persona   string `json:"persona"`
+	RequestID string `json:"-"`
+	Timestamp int64  `json:"-"`
+}
+
+type LLMSettingsResponse struct {
+	APIKeys   map[string]string        `json:"api_keys,omitempty"`
+	Models    []map[string]interface{} `json:"models,omitempty"`
+	Settings  map[string]interface{}   `json:"settings,omitempty"`
+	RequestID string                   `json:"-"`
+	Timestamp int64                    `json:"-"`
+}
+
+// Sessions
+type SessionDetailResponse struct {
+	SessionID    string                 `json:"session_id"`
+	UserID       string                 `json:"user_id"`
+	CreatedAt    *time.Time             `json:"created_at,omitempty"`
+	LastActivity *time.Time             `json:"last_activity,omitempty"`
+	MessageCount int                    `json:"message_count,omitempty"`
+	Active       bool                   `json:"active,omitempty"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	RequestID    string                 `json:"-"`
+	Timestamp    int64                  `json:"-"`
+}
+
 // User resolve
 type UserResolveRequest struct {
 	Identifier string `json:"identifier"`

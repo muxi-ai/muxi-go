@@ -1,6 +1,7 @@
 package muxi
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -246,6 +248,240 @@ func (c *FormationClient) CancelRequest(ctx context.Context, requestID, userID s
 // GetRequestStatus returns request status
 func (c *FormationClient) GetRequestStatus(ctx context.Context, requestID, userID string) (*RequestStatusResponse, error) {
 	return formationRequest[RequestStatusResponse](ctx, c, http.MethodGet, "/requests/"+requestID, nil, false, userID)
+}
+
+// Memory
+func (c *FormationClient) GetMemoryConfig(ctx context.Context) (*MemoryConfigResponse, error) {
+	return formationRequest[MemoryConfigResponse](ctx, c, http.MethodGet, "/memory", nil, true, "")
+}
+
+func (c *FormationClient) GetMemories(ctx context.Context, userID string) (*MemoriesListResponse, error) {
+	path := "/memories"
+	if userID != "" {
+		path += "?user_id=" + userID
+	}
+	return formationRequest[MemoriesListResponse](ctx, c, http.MethodGet, path, nil, false, "")
+}
+
+func (c *FormationClient) AddMemory(ctx context.Context, userID, memType, detail string) (*Memory, error) {
+	body := map[string]string{"user_id": userID, "type": memType, "detail": detail}
+	resp, err := c.doJSON(ctx, http.MethodPost, "/memories", body, false, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[Memory](resp)
+}
+
+func (c *FormationClient) DeleteMemory(ctx context.Context, userID, memoryID string) error {
+	path := "/memories/" + memoryID
+	if userID != "" {
+		path += "?user_id=" + userID
+	}
+	return formationRequestNoBody(ctx, c, http.MethodDelete, path, nil, false, "")
+}
+
+func (c *FormationClient) GetUserBuffer(ctx context.Context, userID string) (*UserBufferResponse, error) {
+	path := "/memory/buffer"
+	if userID != "" {
+		path += "?user_id=" + userID
+	}
+	return formationRequest[UserBufferResponse](ctx, c, http.MethodGet, path, nil, false, "")
+}
+
+func (c *FormationClient) ClearUserBuffer(ctx context.Context, userID string) (*BufferClearedResponse, error) {
+	path := "/memory/buffer"
+	if userID != "" {
+		path += "?user_id=" + userID
+	}
+	resp, err := c.do(ctx, http.MethodDelete, path, nil, false, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[BufferClearedResponse](resp)
+}
+
+func (c *FormationClient) ClearSessionBuffer(ctx context.Context, userID, sessionID string) (*SessionBufferClearedResponse, error) {
+	path := "/memory/buffer/" + sessionID
+	if userID != "" {
+		path += "?user_id=" + userID
+	}
+	resp, err := c.do(ctx, http.MethodDelete, path, nil, false, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[SessionBufferClearedResponse](resp)
+}
+
+func (c *FormationClient) GetMemoryBuffers(ctx context.Context) (*MemoryBuffersResponse, error) {
+	return formationRequest[MemoryBuffersResponse](ctx, c, http.MethodGet, "/memory/buffers", nil, true, "")
+}
+
+// Scheduler
+func (c *FormationClient) GetSchedulerConfig(ctx context.Context) (*SchedulerConfigResponse, error) {
+	return formationRequest[SchedulerConfigResponse](ctx, c, http.MethodGet, "/scheduler/config", nil, true, "")
+}
+
+func (c *FormationClient) GetSchedulerJobs(ctx context.Context, userID string) (*SchedulerJobsResponse, error) {
+	path := "/scheduler/jobs"
+	if userID != "" {
+		path += "?user_id=" + userID
+	}
+	return formationRequest[SchedulerJobsResponse](ctx, c, http.MethodGet, path, nil, true, "")
+}
+
+func (c *FormationClient) GetSchedulerJob(ctx context.Context, jobID string) (*SchedulerJobDetail, error) {
+	return formationRequest[SchedulerJobDetail](ctx, c, http.MethodGet, "/scheduler/jobs/"+jobID, nil, true, "")
+}
+
+func (c *FormationClient) CreateSchedulerJob(ctx context.Context, jobType, schedule, message, userID string) (*SchedulerJobDetail, error) {
+	body := map[string]string{
+		"type":     jobType,
+		"schedule": schedule,
+		"message":  message,
+	}
+	if userID != "" {
+		body["user_id"] = userID
+	}
+	resp, err := c.doJSON(ctx, http.MethodPost, "/scheduler/jobs", body, true, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[SchedulerJobDetail](resp)
+}
+
+func (c *FormationClient) DeleteSchedulerJob(ctx context.Context, jobID string) error {
+	return formationRequestNoBody(ctx, c, http.MethodDelete, "/scheduler/jobs/"+jobID, nil, true, "")
+}
+
+// User identifiers
+func (c *FormationClient) GetUserIdentifiers(ctx context.Context) (*UserIdentifiersResponse, error) {
+	return formationRequest[UserIdentifiersResponse](ctx, c, http.MethodGet, "/users/identifiers", nil, true, "")
+}
+
+func (c *FormationClient) GetUserIdentifiersForUser(ctx context.Context, userID string) (*UserIdentifiersResponse, error) {
+	return formationRequest[UserIdentifiersResponse](ctx, c, http.MethodGet, "/users/"+userID+"/identifiers", nil, true, "")
+}
+
+func (c *FormationClient) LinkUserIdentifier(ctx context.Context, muxiUserID string, identifiers []interface{}) (*UserIdentifiersResponse, error) {
+	body := map[string]interface{}{"muxi_user_id": muxiUserID, "identifiers": identifiers}
+	resp, err := c.doJSON(ctx, http.MethodPost, "/users/identifiers", body, true, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[UserIdentifiersResponse](resp)
+}
+
+func (c *FormationClient) UnlinkUserIdentifier(ctx context.Context, identifier string) error {
+	path := "/users/identifiers?identifier=" + identifier
+	return formationRequestNoBody(ctx, c, http.MethodDelete, path, nil, true, "")
+}
+
+// Overlord / LLM
+func (c *FormationClient) GetOverlordConfig(ctx context.Context) (*OverlordConfigResponse, error) {
+	return formationRequest[OverlordConfigResponse](ctx, c, http.MethodGet, "/overlord", nil, true, "")
+}
+
+func (c *FormationClient) GetOverlordPersona(ctx context.Context) (*OverlordPersonaResponse, error) {
+	return formationRequest[OverlordPersonaResponse](ctx, c, http.MethodGet, "/overlord/persona", nil, true, "")
+}
+
+func (c *FormationClient) GetLLMSettings(ctx context.Context) (*LLMSettingsResponse, error) {
+	return formationRequest[LLMSettingsResponse](ctx, c, http.MethodGet, "/llm/settings", nil, true, "")
+}
+
+// Sessions
+func (c *FormationClient) GetSession(ctx context.Context, sessionID, userID string) (*SessionDetailResponse, error) {
+	return formationRequest[SessionDetailResponse](ctx, c, http.MethodGet, "/sessions/"+sessionID, nil, false, userID)
+}
+
+// Events streaming
+func (c *FormationClient) StreamEvents(ctx context.Context, userID string) (<-chan LogStreamEvent, <-chan error) {
+	path := "/events"
+	if userID != "" {
+		path += "?user_id=" + userID
+	}
+	out := make(chan LogStreamEvent)
+	errs := make(chan error, 1)
+
+	go func() {
+		defer close(out)
+		defer close(errs)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+		if err != nil {
+			errs <- err
+			return
+		}
+		if c.clientKey == "" {
+			errs <- fmt.Errorf("client key required")
+			return
+		}
+		req.Header.Set("X-MUXI-CLIENT-KEY", c.clientKey)
+		req.Header.Set("Accept", "text/event-stream")
+
+		baseTr := c.httpClient.Transport
+		if baseTr == nil {
+			baseTr = http.DefaultTransport
+		}
+		client := &http.Client{Timeout: 0, Transport: baseTr}
+		resp, err := client.Do(req)
+		if err != nil {
+			errs <- &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= 400 {
+			errs <- checkFormationHTTP(resp)
+			return
+		}
+
+		scanner := bufio.NewScanner(resp.Body)
+		scanner.Buffer(make([]byte, 0, 256*1024), 10*1024*1024)
+		var dataBuf []string
+
+		flush := func() error {
+			if len(dataBuf) == 0 {
+				return nil
+			}
+			payload := strings.Join(dataBuf, "")
+			dataBuf = dataBuf[:0]
+			var ev LogStreamEvent
+			if err := json.Unmarshal([]byte(payload), &ev); err != nil {
+				return fmt.Errorf("failed to parse event: %w", err)
+			}
+			out <- ev
+			return nil
+		}
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "data:") {
+				data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+				dataBuf = append(dataBuf, data)
+			}
+			if line == "" {
+				if err := flush(); err != nil {
+					errs <- err
+					return
+				}
+			}
+		}
+		if err := flush(); err != nil {
+			errs <- err
+			return
+		}
+		if err := scanner.Err(); err != nil {
+			errs <- err
+			return
+		}
+	}()
+
+	return out, errs
 }
 
 // ResolveUser resolves an identifier
