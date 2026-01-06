@@ -136,16 +136,18 @@ for event := range events {
 
 ## Configuration
 
-### Environment Variables
+The SDK does **not** auto-read environment variables; pass values explicitly. Examples below show `os.Getenv` only as a convenience pattern.
 
-| Variable | Description |
-|----------|-------------|
+### Passing config (example using env values)
+
+| Variable (example) | Description |
+|--------------------|-------------|
 | `MUXI_SERVER_URL` | Server URL for ServerClient |
 | `MUXI_KEY_ID` | HMAC key ID for server auth |
 | `MUXI_SECRET_KEY` | HMAC secret key for server auth |
 | `MUXI_CLIENT_KEY` | Formation client key |
 | `MUXI_ADMIN_KEY` | Formation admin key (optional) |
-| `MUXI_DEBUG` | Enable debug logging |
+| `MUXI_DEBUG` | Enable debug logging (optional) |
 
 ### Client Options
 
