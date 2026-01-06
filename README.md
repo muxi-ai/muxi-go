@@ -1,6 +1,6 @@
 # MUXI Go SDK
 
-Official Go SDK for [MUXI](https://muxi.ai) - the infrastructure layer for AI agents.
+Official Go SDK for [MUXI](https://muxi.org) - the infrastructure layer for AI agents.
 
 > Need deeper usage notes? See [USER_GUIDE.md](./USER_GUIDE.md) for streaming, retries, and auth details.
 
