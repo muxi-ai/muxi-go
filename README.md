@@ -185,6 +185,7 @@ client := muxi.NewFormationClient(&muxi.FormationConfig{
 | `CancelUpdate` | Cancel an ongoing update |
 | `Status` | Get server status |
 | `Health` | Health check |
+| `GetServerLogs` | Fetch server audit logs (text) |
 | `GetFormationLogs` | Fetch formation logs (non-streaming) |
 | `StreamFormationLogs` | Stream formation logs (SSE) |
 
@@ -197,13 +198,15 @@ client := muxi.NewFormationClient(&muxi.FormationConfig{
 | **Agents** | `GetAgents`, `GetAgent` |
 | **Secrets** | `GetSecrets`, `GetSecret`, `SetSecret`, `DeleteSecret` |
 | **MCP** | `GetMCPServers`, `GetMCPServer`, `GetMCPTools` |
-| **Sessions/Requests** | `GetSessions`, `GetSessionMessages`, `RestoreSession`, `GetRequests`, `GetRequestStatus`, `CancelRequest` |
-| **Users** | `ResolveUser` |
-| **Credentials** | `ListCredentials`, `GetCredential`, `CreateCredential`, `DeleteCredential` |
+| **Sessions/Requests** | `GetSessions`, `GetSession`, `GetSessionMessages`, `RestoreSession`, `GetRequests`, `GetRequestStatus`, `CancelRequest`, `StreamRequest` |
+| **Users/Identifiers** | `ResolveUser`, `GetUserIdentifiers`, `GetUserIdentifiersForUser`, `LinkUserIdentifier`, `UnlinkUserIdentifier` |
+| **Credentials** | `ListCredentials`, `GetCredential`, `CreateCredential`, `DeleteCredential`, `ListCredentialServices` |
 | **Triggers/SOPs/Audit** | `GetTriggers`, `GetTrigger`, `FireTrigger`, `GetSOPs`, `GetSOP`, `GetAuditLog`, `ClearAuditLog` |
-
-### Planned / Not Yet Implemented
-- Memory/scheduler/user-identifier/overlord/persona/LLM settings/end-to-end events APIs (referenced in design docs) are not yet implemented in this Go SDK revision.
+| **Memory** | `GetMemoryConfig`, `GetMemories`, `AddMemory`, `DeleteMemory`, `GetUserBuffer`, `ClearUserBuffer`, `ClearSessionBuffer`, `ClearAllBuffers`, `GetMemoryBuffers`, `GetBufferStats` |
+| **Scheduler** | `GetSchedulerConfig`, `GetSchedulerJobs`, `GetSchedulerJob`, `CreateSchedulerJob`, `DeleteSchedulerJob` |
+| **Async/A2A/Logging** | `GetAsyncConfig`, `GetAsyncJobs`, `GetAsyncJob`, `CancelAsyncJob`, `GetA2AConfig`, `GetLoggingConfig`, `GetLoggingDestinations` |
+| **Overlord/LLM** | `GetOverlordConfig`, `GetOverlordPersona`, `GetLLMSettings` |
+| **Events/Logs Streaming** | `StreamEvents`, `StreamLogs` |
 
 ## Error Handling
 

@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -442,6 +443,35 @@ func (c *ServerClient) GetFormationLogs(ctx context.Context, id string, lines in
 		return nil, err
 	}
 	return &logs, nil
+}
+
+// GetServerLogs fetches server audit logs (plain text lines). If lines <= 0, server default (100) is used.
+func (c *ServerClient) GetServerLogs(ctx context.Context, lines int) ([]string, error) {
+	path := "/rpc/server/logs"
+	if lines > 0 {
+		path = fmt.Sprintf("%s?lines=%d", path, lines)
+	}
+
+	resp, err := c.do(ctx, http.MethodGet, path, nil, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return nil, mapStatusToError(resp.StatusCode, resp.Body)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	trimmed := strings.TrimSpace(string(body))
+	if trimmed == "" {
+		return []string{}, nil
+	}
+	return strings.Split(trimmed, "\n"), nil
 }
 
 // StreamFormationLogs streams logs via SSE; returns channel of LogEvent
