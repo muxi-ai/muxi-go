@@ -9,7 +9,9 @@ import (
 	"time"
 )
 
-// GenerateHMACSignature generates an HMAC-SHA256 signature for authentication
+// GenerateHMACSignature generates an HMAC-SHA256 signature for authentication.
+// Per server contract, the query string is stripped before signing; callers may
+// pass a path with query, but only the path portion is used for the signature.
 func GenerateHMACSignature(secretKey, method, path string) (string, int64) {
 	timestamp := time.Now().Unix()
 

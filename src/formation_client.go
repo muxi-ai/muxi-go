@@ -1,528 +1,561 @@
 package muxi
 
 import (
-    "bytes"
-    "context"
-    "encoding/json"
-    "fmt"
-    "io"
-    "net/http"
-    "time"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"reflect"
+	"time"
 )
 
 // FormationConfig configures FormationClient
 type FormationConfig struct {
-    FormationID string
-    URL         string // direct mode (http://localhost:8001)
-    ServerURL   string // proxy mode (https://server/api/{id}/v1)
-    BaseURL     string // explicit override
-    AdminKey    string
-    ClientKey   string
-    MaxRetries  int
-    Timeout     time.Duration
-    HTTPClient  *http.Client
+	FormationID string
+	URL         string // direct mode (http://localhost:8001)
+	ServerURL   string // proxy mode (https://server/api/{id}/v1)
+	BaseURL     string // explicit override
+	AdminKey    string
+	ClientKey   string
+	MaxRetries  int
+	Timeout     time.Duration
+	HTTPClient  *http.Client
+	Debug       bool
+	Logger      *log.Logger
 }
 
 // FormationClient is an HTTP client for Formation API
 type FormationClient struct {
-    baseURL    string
-    adminKey   string
-    clientKey  string
-    httpClient *http.Client
-    maxRetries int
+	baseURL    string
+	adminKey   string
+	clientKey  string
+	httpClient *http.Client
+	maxRetries int
 }
 
 // NewFormationClient constructs a FormationClient
 func NewFormationClient(cfg *FormationConfig) *FormationClient {
-    if cfg == nil {
-        panic("FormationConfig is required")
-    }
+	if cfg == nil {
+		panic("FormationConfig is required")
+	}
 
-    base := cfg.BaseURL
-    if base == "" {
-        switch {
-        case cfg.URL != "":
-            base = cfg.URL + "/v1"
-        case cfg.ServerURL != "" && cfg.FormationID != "":
-            base = fmt.Sprintf("%s/api/%s/v1", cfg.ServerURL, cfg.FormationID)
-        default:
-            panic("must set BaseURL, URL, or ServerURL+FormationID")
-        }
-    }
+	base := cfg.BaseURL
+	if base == "" {
+		switch {
+		case cfg.URL != "":
+			base = cfg.URL + "/v1"
+		case cfg.ServerURL != "" && cfg.FormationID != "":
+			base = fmt.Sprintf("%s/api/%s/v1", cfg.ServerURL, cfg.FormationID)
+		default:
+			panic("must set BaseURL, URL, or ServerURL+FormationID")
+		}
+	}
 
-    timeout := cfg.Timeout
-    if timeout == 0 {
-        timeout = 30 * time.Second
-    }
+	debug := cfg.Debug || os.Getenv("MUXI_DEBUG") != ""
+	logger := cfg.Logger
+	if logger == nil {
+		logger = log.Default()
+	}
 
-    transport := newSDKTransport(http.DefaultTransport)
-    client := cfg.HTTPClient
-    if client == nil {
-        client = &http.Client{Timeout: timeout, Transport: transport}
-    } else {
-        baseTr := client.Transport
-        if baseTr == nil {
-            baseTr = http.DefaultTransport
-        }
-        client = &http.Client{Timeout: client.Timeout, Transport: newSDKTransport(baseTr)}
-    }
+	timeout := cfg.Timeout
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
 
-    return &FormationClient{
-        baseURL:    base,
-        adminKey:   cfg.AdminKey,
-        clientKey:  cfg.ClientKey,
-        httpClient: client,
-        maxRetries: cfg.MaxRetries,
-    }
+	transport := newSDKTransport(http.DefaultTransport, logger, debug)
+	client := cfg.HTTPClient
+	if client == nil {
+		client = &http.Client{Timeout: timeout, Transport: transport}
+	} else {
+		baseTr := client.Transport
+		if baseTr == nil {
+			baseTr = http.DefaultTransport
+		}
+		client = &http.Client{Timeout: client.Timeout, Transport: newSDKTransport(baseTr, logger, debug)}
+	}
+
+	return &FormationClient{
+		baseURL:    base,
+		adminKey:   cfg.AdminKey,
+		clientKey:  cfg.ClientKey,
+		httpClient: client,
+		maxRetries: cfg.MaxRetries,
+	}
 }
 
 // Health checks formation health (no auth)
 func (c *FormationClient) Health(ctx context.Context) (*HealthResponse, error) {
-    req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/health", nil)
-    if err != nil {
-        return nil, err
-    }
-    resp, err := c.httpClient.Do(req)
-    if err != nil {
-        return nil, &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
-    }
-    defer resp.Body.Close()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/health", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
+	}
+	defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
-        return nil, mapStatusToError(resp.StatusCode, resp.Body)
-    }
+	if resp.StatusCode != http.StatusOK {
+		return nil, mapStatusToError(resp.StatusCode, resp.Body)
+	}
 
-    var h HealthResponse
-    if err := json.NewDecoder(resp.Body).Decode(&h); err != nil {
-        return nil, err
-    }
-    return &h, nil
+	var h HealthResponse
+	if err := json.NewDecoder(resp.Body).Decode(&h); err != nil {
+		return nil, err
+	}
+	return &h, nil
 }
 
 // GetStatus returns formation status
 func (c *FormationClient) GetStatus(ctx context.Context) (*StatusResponse, error) {
-    return formationRequest[StatusResponse](ctx, c, http.MethodGet, "/status", nil, true, "")
+	return formationRequest[StatusResponse](ctx, c, http.MethodGet, "/status", nil, true, "")
 }
 
 // GetConfig returns formation config
 func (c *FormationClient) GetConfig(ctx context.Context) (*ConfigResponse, error) {
-    return formationRequest[ConfigResponse](ctx, c, http.MethodGet, "/config", nil, true, "")
+	return formationRequest[ConfigResponse](ctx, c, http.MethodGet, "/config", nil, true, "")
 }
 
 // GetFormationInfo returns basic formation info
 func (c *FormationClient) GetFormationInfo(ctx context.Context) (*FormationInfoResponse, error) {
-    return formationRequest[FormationInfoResponse](ctx, c, http.MethodGet, "/formation", nil, true, "")
+	return formationRequest[FormationInfoResponse](ctx, c, http.MethodGet, "/formation", nil, true, "")
 }
 
 // GetAgents lists agents
 func (c *FormationClient) GetAgents(ctx context.Context) (*AgentListResponse, error) {
-    return formationRequest[AgentListResponse](ctx, c, http.MethodGet, "/agents", nil, true, "")
+	return formationRequest[AgentListResponse](ctx, c, http.MethodGet, "/agents", nil, true, "")
 }
 
 // GetAgent gets a single agent (raw map)
 func (c *FormationClient) GetAgent(ctx context.Context, id string) (map[string]interface{}, error) {
-    res, err := formationRequest[map[string]interface{}](ctx, c, http.MethodGet, "/agents/"+id, nil, true, "")
-    if err != nil {
-        return nil, err
-    }
-    return *res, nil
+	res, err := formationRequest[map[string]interface{}](ctx, c, http.MethodGet, "/agents/"+id, nil, true, "")
+	if err != nil {
+		return nil, err
+	}
+	return *res, nil
 }
 
 // GetSecrets lists secrets (masked)
 func (c *FormationClient) GetSecrets(ctx context.Context) (*SecretsListResponse, error) {
-    return formationRequest[SecretsListResponse](ctx, c, http.MethodGet, "/secrets", nil, true, "")
+	return formationRequest[SecretsListResponse](ctx, c, http.MethodGet, "/secrets", nil, true, "")
 }
 
 // GetSecret gets a secret (masked value)
 func (c *FormationClient) GetSecret(ctx context.Context, key string) (*SecretResponse, error) {
-    return formationRequest[SecretResponse](ctx, c, http.MethodGet, "/secrets/"+key, nil, true, "")
+	return formationRequest[SecretResponse](ctx, c, http.MethodGet, "/secrets/"+key, nil, true, "")
 }
 
 // SetSecret sets a secret value
 func (c *FormationClient) SetSecret(ctx context.Context, key, value string) error {
-    body := map[string]string{"value": value}
-    return formationRequestNoBody(ctx, c, http.MethodPost, "/secrets/"+key, body, true, "")
+	body := map[string]string{"value": value}
+	return formationRequestNoBody(ctx, c, http.MethodPost, "/secrets/"+key, body, true, "")
 }
 
 // DeleteSecret deletes a secret
 func (c *FormationClient) DeleteSecret(ctx context.Context, key string) error {
-    return formationRequestNoBody(ctx, c, http.MethodDelete, "/secrets/"+key, nil, true, "")
+	return formationRequestNoBody(ctx, c, http.MethodDelete, "/secrets/"+key, nil, true, "")
 }
 
 // GetMCPServers lists MCP servers
 func (c *FormationClient) GetMCPServers(ctx context.Context) (*MCPListResponse, error) {
-    return formationRequest[MCPListResponse](ctx, c, http.MethodGet, "/mcp/servers", nil, true, "")
+	return formationRequest[MCPListResponse](ctx, c, http.MethodGet, "/mcp/servers", nil, true, "")
 }
 
 // GetMCPServer gets an MCP server (raw map)
 func (c *FormationClient) GetMCPServer(ctx context.Context, id string) (map[string]interface{}, error) {
-    res, err := formationRequest[map[string]interface{}](ctx, c, http.MethodGet, "/mcp/servers/"+id, nil, true, "")
-    if err != nil {
-        return nil, err
-    }
-    return *res, nil
+	res, err := formationRequest[map[string]interface{}](ctx, c, http.MethodGet, "/mcp/servers/"+id, nil, true, "")
+	if err != nil {
+		return nil, err
+	}
+	return *res, nil
 }
 
 // GetMCPTools lists MCP tools
 func (c *FormationClient) GetMCPTools(ctx context.Context) (*MCPToolsResponse, error) {
-    return formationRequest[MCPToolsResponse](ctx, c, http.MethodGet, "/mcp/tools", nil, true, "")
+	return formationRequest[MCPToolsResponse](ctx, c, http.MethodGet, "/mcp/tools", nil, true, "")
 }
 
 // Chat sends a chat request (non-streaming)
 func (c *FormationClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
-    resp, err := c.doJSON(ctx, http.MethodPost, "/chat", req, false, req.UserID)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    return decodeFormation[ChatResponse](resp)
+	resp, err := c.doJSON(ctx, http.MethodPost, "/chat", req, false, req.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[ChatResponse](resp)
 }
 
 // ChatStream streams chat responses
 func (c *FormationClient) ChatStream(ctx context.Context, req *ChatRequest) (<-chan ChatChunk, <-chan error) {
-    req.Stream = true
-    return c.streamChat(ctx, "/chat", req, req.UserID)
+	req.Stream = true
+	return c.streamChat(ctx, "/chat", req, req.UserID)
 }
 
 // AudioChat sends audio (non-streaming)
 func (c *FormationClient) AudioChat(ctx context.Context, req *AudioChatRequest) (*ChatResponse, error) {
-    resp, err := c.doJSON(ctx, http.MethodPost, "/audiochat", req, false, req.UserID)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    return decodeFormation[ChatResponse](resp)
+	resp, err := c.doJSON(ctx, http.MethodPost, "/audiochat", req, false, req.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[ChatResponse](resp)
 }
 
 // AudioChatStream streams audio chat responses
 func (c *FormationClient) AudioChatStream(ctx context.Context, req *AudioChatRequest) (<-chan ChatChunk, <-chan error) {
-    req.Stream = true
-    return c.streamChat(ctx, "/audiochat", req, req.UserID)
+	req.Stream = true
+	return c.streamChat(ctx, "/audiochat", req, req.UserID)
 }
 
 // GetSessions lists sessions for a user
 func (c *FormationClient) GetSessions(ctx context.Context, userID string, limit int) (*SessionsListResponse, error) {
-    path := "/sessions"
-    if limit > 0 {
-        path = fmt.Sprintf("/sessions?limit=%d", limit)
-    }
-    return formationRequest[SessionsListResponse](ctx, c, http.MethodGet, path, nil, false, userID)
+	path := "/sessions"
+	if limit > 0 {
+		path = fmt.Sprintf("/sessions?limit=%d", limit)
+	}
+	return formationRequest[SessionsListResponse](ctx, c, http.MethodGet, path, nil, false, userID)
 }
 
 // GetSessionMessages gets messages for a session
 func (c *FormationClient) GetSessionMessages(ctx context.Context, sessionID, userID string) (*SessionMessagesResponse, error) {
-    return formationRequest[SessionMessagesResponse](ctx, c, http.MethodGet, "/sessions/"+sessionID+"/messages", nil, false, userID)
+	return formationRequest[SessionMessagesResponse](ctx, c, http.MethodGet, "/sessions/"+sessionID+"/messages", nil, false, userID)
 }
 
 // RestoreSession restores messages into a session
 func (c *FormationClient) RestoreSession(ctx context.Context, sessionID, userID string, messages []Message) error {
-    payload := struct {
-        Messages []Message `json:"messages"`
-    }{Messages: messages}
-    return formationRequestNoBody(ctx, c, http.MethodPost, "/sessions/"+sessionID+"/restore", payload, false, userID)
+	payload := struct {
+		Messages []Message `json:"messages"`
+	}{Messages: messages}
+	return formationRequestNoBody(ctx, c, http.MethodPost, "/sessions/"+sessionID+"/restore", payload, false, userID)
 }
 
 // GetRequests lists requests for a user
 func (c *FormationClient) GetRequests(ctx context.Context, userID string) (*RequestsListResponse, error) {
-    return formationRequest[RequestsListResponse](ctx, c, http.MethodGet, "/requests", nil, false, userID)
+	return formationRequest[RequestsListResponse](ctx, c, http.MethodGet, "/requests", nil, false, userID)
 }
 
 // CancelRequest cancels a request
 func (c *FormationClient) CancelRequest(ctx context.Context, requestID, userID string) error {
-    return formationRequestNoBody(ctx, c, http.MethodDelete, "/requests/"+requestID, nil, false, userID)
+	return formationRequestNoBody(ctx, c, http.MethodDelete, "/requests/"+requestID, nil, false, userID)
 }
 
 // GetRequestStatus returns request status
 func (c *FormationClient) GetRequestStatus(ctx context.Context, requestID, userID string) (*RequestStatusResponse, error) {
-    return formationRequest[RequestStatusResponse](ctx, c, http.MethodGet, "/requests/"+requestID, nil, false, userID)
+	return formationRequest[RequestStatusResponse](ctx, c, http.MethodGet, "/requests/"+requestID, nil, false, userID)
 }
 
 // ResolveUser resolves an identifier
 func (c *FormationClient) ResolveUser(ctx context.Context, identifier string, createUser bool) (*UserResolveResponse, error) {
-    body := UserResolveRequest{Identifier: identifier, CreateUser: createUser}
-    resp, err := c.doJSON(ctx, http.MethodPost, "/users/resolve", body, false, "")
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    return decodeFormation[UserResolveResponse](resp)
+	body := UserResolveRequest{Identifier: identifier, CreateUser: createUser}
+	resp, err := c.doJSON(ctx, http.MethodPost, "/users/resolve", body, false, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[UserResolveResponse](resp)
 }
 
 // Triggers
 func (c *FormationClient) GetTriggers(ctx context.Context) (*TriggersListResponse, error) {
-    return formationRequest[TriggersListResponse](ctx, c, http.MethodGet, "/triggers", nil, false, "")
+	return formationRequest[TriggersListResponse](ctx, c, http.MethodGet, "/triggers", nil, false, "")
 }
 
 func (c *FormationClient) GetTrigger(ctx context.Context, name string) (*TriggerDetail, error) {
-    return formationRequest[TriggerDetail](ctx, c, http.MethodGet, "/triggers/"+name, nil, false, "")
+	return formationRequest[TriggerDetail](ctx, c, http.MethodGet, "/triggers/"+name, nil, false, "")
 }
 
 func (c *FormationClient) FireTrigger(ctx context.Context, name string, data json.RawMessage, async bool, userID string) (*TriggerResponse, error) {
-    body := TriggerRequest{Data: data, UseAsync: async}
-    resp, err := c.doJSON(ctx, http.MethodPost, "/triggers/"+name, body, false, userID)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    apiResp, err := decodeFormationResp(resp)
-    if err != nil {
-        return nil, err
-    }
-    var tr TriggerResponse
-    if err := json.Unmarshal(apiResp.Data, &tr); err != nil {
-        return nil, err
-    }
-    tr.RequestID = apiResp.Request.ID
-    return &tr, nil
+	body := TriggerRequest{Data: data, UseAsync: async}
+	resp, err := c.doJSON(ctx, http.MethodPost, "/triggers/"+name, body, false, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	apiResp, err := decodeFormationResp(resp)
+	if err != nil {
+		return nil, err
+	}
+	var tr TriggerResponse
+	if err := json.Unmarshal(apiResp.Data, &tr); err != nil {
+		return nil, err
+	}
+	tr.RequestID = apiResp.Request.ID
+	return &tr, nil
 }
 
 // SOPs
 func (c *FormationClient) GetSOPs(ctx context.Context) (*SOPsListResponse, error) {
-    return formationRequest[SOPsListResponse](ctx, c, http.MethodGet, "/sops", nil, false, "")
+	return formationRequest[SOPsListResponse](ctx, c, http.MethodGet, "/sops", nil, false, "")
 }
 
 func (c *FormationClient) GetSOP(ctx context.Context, name string) (*SOP, error) {
-    return formationRequest[SOP](ctx, c, http.MethodGet, "/sops/"+name, nil, false, "")
+	return formationRequest[SOP](ctx, c, http.MethodGet, "/sops/"+name, nil, false, "")
 }
 
 // Audit
 func (c *FormationClient) GetAuditLog(ctx context.Context) (*AuditLogResponse, error) {
-    return formationRequest[AuditLogResponse](ctx, c, http.MethodGet, "/audit", nil, true, "")
+	return formationRequest[AuditLogResponse](ctx, c, http.MethodGet, "/audit", nil, true, "")
 }
 
 func (c *FormationClient) ClearAuditLog(ctx context.Context) error {
-    return formationRequestNoBody(ctx, c, http.MethodDelete, "/audit?confirm=clear-audit-log", nil, true, "")
+	return formationRequestNoBody(ctx, c, http.MethodDelete, "/audit?confirm=clear-audit-log", nil, true, "")
 }
 
 // Credentials
 func (c *FormationClient) ListCredentials(ctx context.Context, userID string) (*CredentialsListResponse, error) {
-    return formationRequest[CredentialsListResponse](ctx, c, http.MethodGet, "/credentials", nil, false, userID)
+	return formationRequest[CredentialsListResponse](ctx, c, http.MethodGet, "/credentials", nil, false, userID)
 }
 
 func (c *FormationClient) GetCredential(ctx context.Context, credentialID, userID string) (*Credential, error) {
-    return formationRequest[Credential](ctx, c, http.MethodGet, "/credentials/"+credentialID, nil, false, userID)
+	return formationRequest[Credential](ctx, c, http.MethodGet, "/credentials/"+credentialID, nil, false, userID)
 }
 
 func (c *FormationClient) CreateCredential(ctx context.Context, userID string, req *CreateCredentialRequest) (*CreateCredentialResponse, error) {
-    resp, err := c.doJSON(ctx, http.MethodPost, "/credentials", req, false, userID)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    return decodeFormation[CreateCredentialResponse](resp)
+	resp, err := c.doJSON(ctx, http.MethodPost, "/credentials", req, false, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[CreateCredentialResponse](resp)
 }
 
 func (c *FormationClient) DeleteCredential(ctx context.Context, credentialID, userID string) (*DeleteCredentialResponse, error) {
-    resp, err := c.do(ctx, http.MethodDelete, "/credentials/"+credentialID, nil, false, userID)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    return decodeFormation[DeleteCredentialResponse](resp)
+	resp, err := c.do(ctx, http.MethodDelete, "/credentials/"+credentialID, nil, false, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[DeleteCredentialResponse](resp)
 }
 
 // --- helpers ---
 
 func (c *FormationClient) doJSON(ctx context.Context, method, path string, body interface{}, useAdmin bool, userID string) (*http.Response, error) {
-    var reader io.Reader
-    if body != nil {
-        data, err := json.Marshal(body)
-        if err != nil {
-            return nil, err
-        }
-        reader = bytes.NewReader(data)
-    }
-    return c.do(ctx, method, path, reader, useAdmin, userID)
+	var reader io.Reader
+	if body != nil {
+		data, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		reader = bytes.NewReader(data)
+	}
+	return c.do(ctx, method, path, reader, useAdmin, userID)
 }
 
 // do executes a request with retry logic
 func (c *FormationClient) do(ctx context.Context, method, path string, body io.Reader, useAdmin bool, userID string) (*http.Response, error) {
-    url := c.baseURL + path
+	url := c.baseURL + path
 
-    attempt := 0
-    for {
-        req, err := http.NewRequestWithContext(ctx, method, url, body)
-        if err != nil {
-            return nil, err
-        }
+	attempt := 0
+	for {
+		req, err := http.NewRequestWithContext(ctx, method, url, body)
+		if err != nil {
+			return nil, err
+		}
 
-        // Auth headers
-        if useAdmin {
-            if c.adminKey == "" {
-                return nil, fmt.Errorf("admin key required")
-            }
-            req.Header.Set("X-MUXI-ADMIN-KEY", c.adminKey)
-        } else {
-            if c.clientKey == "" {
-                return nil, fmt.Errorf("client key required")
-            }
-            req.Header.Set("X-MUXI-CLIENT-KEY", c.clientKey)
-        }
-        if userID != "" {
-            req.Header.Set("X-Muxi-User-ID", userID)
-        }
-        if body != nil {
-            req.Header.Set("Content-Type", "application/json")
-        }
+		// Auth headers
+		if useAdmin {
+			if c.adminKey == "" {
+				return nil, fmt.Errorf("admin key required")
+			}
+			req.Header.Set("X-MUXI-ADMIN-KEY", c.adminKey)
+		} else {
+			if c.clientKey == "" {
+				return nil, fmt.Errorf("client key required")
+			}
+			req.Header.Set("X-MUXI-CLIENT-KEY", c.clientKey)
+		}
+		if userID != "" {
+			req.Header.Set("X-Muxi-User-ID", userID)
+		}
+		if body != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
 
-        resp, err := c.httpClient.Do(req)
-        if err != nil {
-            return nil, &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
-        }
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
+		}
 
-        if !shouldRetry(method, resp.StatusCode, c.maxRetries, attempt) {
-            return resp, nil
-        }
+		if !shouldRetry(method, resp.StatusCode, c.maxRetries, attempt) {
+			return resp, nil
+		}
 
-        io.Copy(io.Discard, resp.Body)
-        resp.Body.Close()
-        time.Sleep(backoffDelay(attempt))
-        attempt++
-    }
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		time.Sleep(backoffDelay(attempt))
+		attempt++
+	}
 }
 
 func decodeFormation[T any](resp *http.Response) (*T, error) {
-    apiResp, err := decodeFormationResp(resp)
-    if err != nil {
-        return nil, err
-    }
-    var out T
-    if err := json.Unmarshal(apiResp.Data, &out); err != nil {
-        return nil, err
-    }
-    return &out, nil
+	apiResp, err := decodeFormationResp(resp)
+	if err != nil {
+		return nil, err
+	}
+	var out T
+	if err := json.Unmarshal(apiResp.Data, &out); err != nil {
+		return nil, err
+	}
+	setMetadata(&out, apiResp.Request.ID, apiResp.Timestamp)
+	return &out, nil
 }
 
 // generic request helper
 func formationRequest[T any](ctx context.Context, c *FormationClient, method, path string, body interface{}, useAdmin bool, userID string) (*T, error) {
-    var resp *http.Response
-    var err error
-    if body != nil && method != http.MethodGet && method != http.MethodDelete {
-        resp, err = c.doJSON(ctx, method, path, body, useAdmin, userID)
-    } else {
-        resp, err = c.do(ctx, method, path, nil, useAdmin, userID)
-    }
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    return decodeFormation[T](resp)
+	var resp *http.Response
+	var err error
+	if body != nil && method != http.MethodGet && method != http.MethodDelete {
+		resp, err = c.doJSON(ctx, method, path, body, useAdmin, userID)
+	} else {
+		resp, err = c.do(ctx, method, path, nil, useAdmin, userID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[T](resp)
 }
 
 func formationRequestNoBody(ctx context.Context, c *FormationClient, method, path string, body interface{}, useAdmin bool, userID string) error {
-    var resp *http.Response
-    var err error
-    if body != nil {
-        resp, err = c.doJSON(ctx, method, path, body, useAdmin, userID)
-    } else {
-        resp, err = c.do(ctx, method, path, nil, useAdmin, userID)
-    }
-    if err != nil {
-        return err
-    }
-    defer resp.Body.Close()
-    return checkFormationHTTP(resp)
+	var resp *http.Response
+	var err error
+	if body != nil {
+		resp, err = c.doJSON(ctx, method, path, body, useAdmin, userID)
+	} else {
+		resp, err = c.do(ctx, method, path, nil, useAdmin, userID)
+	}
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return checkFormationHTTP(resp)
 }
 
 func decodeFormationResp(resp *http.Response) (*FormationAPIResponse, error) {
-    if err := checkFormationHTTP(resp); err != nil {
-        return nil, err
-    }
-    var apiResp FormationAPIResponse
-    if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-        return nil, err
-    }
-    if !apiResp.Success {
-        if apiResp.Error != nil {
-            return nil, &MuxiError{Code: apiResp.Error.Code, Message: apiResp.Error.Message, StatusCode: resp.StatusCode}
-        }
-        return nil, &MuxiError{Code: ErrServerError, Message: "request failed", StatusCode: resp.StatusCode}
-    }
-    return &apiResp, nil
+	if err := checkFormationHTTP(resp); err != nil {
+		return nil, err
+	}
+	var apiResp FormationAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, err
+	}
+	if !apiResp.Success {
+		if apiResp.Error != nil {
+			return nil, &MuxiError{Code: apiResp.Error.Code, Message: apiResp.Error.Message, StatusCode: resp.StatusCode}
+		}
+		return nil, &MuxiError{Code: ErrServerError, Message: "request failed", StatusCode: resp.StatusCode}
+	}
+	return &apiResp, nil
 }
 
 func checkFormationHTTP(resp *http.Response) error {
-    if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-        return nil
-    }
-    // Try parse error envelope
-    var apiResp FormationAPIResponse
-    data, _ := io.ReadAll(resp.Body)
-    if json.Unmarshal(data, &apiResp) == nil && apiResp.Error != nil {
-        return &MuxiError{Code: apiResp.Error.Code, Message: apiResp.Error.Message, StatusCode: resp.StatusCode}
-    }
-    switch resp.StatusCode {
-    case http.StatusUnauthorized:
-        return &AuthenticationError{newMuxiError(ErrUnauthorized, "authentication failed", resp.StatusCode)}
-    case http.StatusForbidden:
-        return &AuthorizationError{newMuxiError(ErrForbidden, "access denied", resp.StatusCode)}
-    case http.StatusNotFound:
-        return &NotFoundError{newMuxiError(ErrNotFound, "not found", resp.StatusCode)}
-    case http.StatusConflict:
-        return &ConflictError{newMuxiError(ErrConflict, "conflict", resp.StatusCode)}
-    default:
-        return &ServerError{newMuxiError(ErrServerError, fmt.Sprintf("server error: %d", resp.StatusCode), resp.StatusCode)}
-    }
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+	// Try parse error envelope
+	var apiResp FormationAPIResponse
+	data, _ := io.ReadAll(resp.Body)
+	if json.Unmarshal(data, &apiResp) == nil && apiResp.Error != nil {
+		return &MuxiError{Code: apiResp.Error.Code, Message: apiResp.Error.Message, StatusCode: resp.StatusCode}
+	}
+	switch resp.StatusCode {
+	case http.StatusUnauthorized:
+		return &AuthenticationError{newMuxiError(ErrUnauthorized, "authentication failed", resp.StatusCode)}
+	case http.StatusForbidden:
+		return &AuthorizationError{newMuxiError(ErrForbidden, "access denied", resp.StatusCode)}
+	case http.StatusNotFound:
+		return &NotFoundError{newMuxiError(ErrNotFound, "not found", resp.StatusCode)}
+	case http.StatusConflict:
+		return &ConflictError{newMuxiError(ErrConflict, "conflict", resp.StatusCode)}
+	default:
+		return &ServerError{newMuxiError(ErrServerError, fmt.Sprintf("server error: %d", resp.StatusCode), resp.StatusCode)}
+	}
+}
+
+// setMetadata injects request metadata into response structs when fields exist
+func setMetadata(dst interface{}, reqID string, ts int64) {
+	rv := reflect.ValueOf(dst)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return
+	}
+	rv = rv.Elem()
+	if rv.Kind() != reflect.Struct {
+		return
+	}
+	if f := rv.FieldByName("RequestID"); f.IsValid() && f.CanSet() && f.Kind() == reflect.String {
+		f.SetString(reqID)
+	}
+	if f := rv.FieldByName("Timestamp"); f.IsValid() && f.CanSet() && f.Kind() == reflect.Int64 {
+		f.SetInt(ts)
+	}
+	if f := rv.FieldByName("MetaTS"); f.IsValid() && f.CanSet() && f.Kind() == reflect.Int64 {
+		f.SetInt(ts)
+	}
 }
 
 // streaming helper
 func (c *FormationClient) streamChat(ctx context.Context, path string, req interface{}, userID string) (<-chan ChatChunk, <-chan error) {
-    out := make(chan ChatChunk)
-    errs := make(chan error, 1)
+	out := make(chan ChatChunk)
+	errs := make(chan error, 1)
 
-    go func() {
-        defer close(out)
-        defer close(errs)
+	go func() {
+		defer close(out)
+		defer close(errs)
 
-        // marshal
-        data, err := json.Marshal(req)
-        if err != nil {
-            errs <- err
-            return
-        }
+		// marshal
+		data, err := json.Marshal(req)
+		if err != nil {
+			errs <- err
+			return
+		}
 
-        httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(data))
-        if err != nil {
-            errs <- err
-            return
-        }
-        httpReq.Header.Set("Content-Type", "application/json")
-        httpReq.Header.Set("Accept", "text/event-stream")
-        httpReq.Header.Set("Cache-Control", "no-cache")
-        httpReq.Header.Set("Connection", "keep-alive")
-        if c.clientKey == "" {
-            errs <- fmt.Errorf("client key required")
-            return
-        }
-        httpReq.Header.Set("X-MUXI-CLIENT-KEY", c.clientKey)
-        if userID != "" {
-            httpReq.Header.Set("X-Muxi-User-ID", userID)
-        }
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(data))
+		if err != nil {
+			errs <- err
+			return
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Accept", "text/event-stream")
+		httpReq.Header.Set("Cache-Control", "no-cache")
+		httpReq.Header.Set("Connection", "keep-alive")
+		if c.clientKey == "" {
+			errs <- fmt.Errorf("client key required")
+			return
+		}
+		httpReq.Header.Set("X-MUXI-CLIENT-KEY", c.clientKey)
+		if userID != "" {
+			httpReq.Header.Set("X-Muxi-User-ID", userID)
+		}
 
-        // no timeout for streaming; reuse configured transport
-        baseTr := c.httpClient.Transport
-        if baseTr == nil {
-            baseTr = http.DefaultTransport
-        }
-        streamClient := &http.Client{Timeout: 0, Transport: baseTr}
-        resp, err := streamClient.Do(httpReq)
-        if err != nil {
-            errs <- &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
-            return
-        }
-        defer resp.Body.Close()
+		// no timeout for streaming; reuse configured transport
+		baseTr := c.httpClient.Transport
+		if baseTr == nil {
+			baseTr = http.DefaultTransport
+		}
+		streamClient := &http.Client{Timeout: 0, Transport: baseTr}
+		resp, err := streamClient.Do(httpReq)
+		if err != nil {
+			errs <- &ConnectionError{newMuxiError(ErrConnectionError, err.Error(), 0)}
+			return
+		}
+		defer resp.Body.Close()
 
-        if resp.StatusCode >= 400 {
-            errs <- checkFormationHTTP(resp)
-            return
-        }
+		if resp.StatusCode >= 400 {
+			errs <- checkFormationHTTP(resp)
+			return
+		}
 
-        // parse SSE
-        if err := parseChatSSE(resp.Body, out); err != nil {
-            errs <- err
-            return
-        }
-    }()
+		// parse SSE
+		if err := parseChatSSE(resp.Body, out); err != nil {
+			errs <- err
+			return
+		}
+	}()
 
-    return out, errs
+	return out, errs
 }

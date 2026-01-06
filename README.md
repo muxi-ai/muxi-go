@@ -168,7 +168,7 @@ client := muxi.NewFormationClient(&muxi.FormationConfig{
 
 ## API Reference
 
-### ServerClient Methods
+### ServerClient Methods (implemented)
 
 | Method | Description |
 |--------|-------------|
@@ -182,11 +182,13 @@ client := muxi.NewFormationClient(&muxi.FormationConfig{
 | `RestartFormation` | Restart a formation |
 | `RollbackFormation` | Rollback to previous version |
 | `DeleteFormation` | Delete a formation |
+| `CancelUpdate` | Cancel an ongoing update |
 | `Status` | Get server status |
 | `Health` | Health check |
-| `GetServerLogs` | Get server audit logs |
+| `GetFormationLogs` | Fetch formation logs (non-streaming) |
+| `StreamFormationLogs` | Stream formation logs (SSE) |
 
-### FormationClient Methods
+### FormationClient Methods (implemented)
 
 | Category | Methods |
 |----------|---------|
@@ -195,15 +197,13 @@ client := muxi.NewFormationClient(&muxi.FormationConfig{
 | **Agents** | `GetAgents`, `GetAgent` |
 | **Secrets** | `GetSecrets`, `GetSecret`, `SetSecret`, `DeleteSecret` |
 | **MCP** | `GetMCPServers`, `GetMCPServer`, `GetMCPTools` |
-| **Memory** | `GetMemoryConfig`, `GetMemories`, `AddMemory`, `DeleteMemory`, `GetUserBuffer`, `ClearUserBuffer` |
-| **Sessions** | `GetSessions`, `GetSession`, `GetSessionMessages`, `RestoreSession` |
-| **Scheduler** | `GetSchedulerConfig`, `GetSchedulerJobs`, `CreateSchedulerJob`, `DeleteSchedulerJob` |
-| **Users** | `GetUserIdentifiers`, `ResolveUser`, `LinkUserIdentifier`, `UnlinkUserIdentifier` |
+| **Sessions/Requests** | `GetSessions`, `GetSessionMessages`, `RestoreSession`, `GetRequests`, `GetRequestStatus`, `CancelRequest` |
+| **Users** | `ResolveUser` |
 | **Credentials** | `ListCredentials`, `GetCredential`, `CreateCredential`, `DeleteCredential` |
-| **Triggers** | `GetTriggers`, `GetTrigger`, `FireTrigger` |
-| **SOPs** | `GetSOPs`, `GetSOP` |
-| **Events** | `StreamEvents`, `StreamLogs` |
-| **Admin** | `GetOverlordConfig`, `GetLLMSettings`, `GetAuditLog` |
+| **Triggers/SOPs/Audit** | `GetTriggers`, `GetTrigger`, `FireTrigger`, `GetSOPs`, `GetSOP`, `GetAuditLog`, `ClearAuditLog` |
+
+### Planned / Not Yet Implemented
+- Memory/scheduler/user-identifier/overlord/persona/LLM settings/end-to-end events APIs (referenced in design docs) are not yet implemented in this Go SDK revision.
 
 ## Error Handling
 
