@@ -1,28 +1,61 @@
+<coding_guidelines>
 ## AGENTS GUIDE (muxi-go)
 
 Purpose: fast orientation for AI coding agents contributing to the Go SDK.
 
-### Project layout
-- Go module root: `go/src` (run all Go commands from this directory).
-- Key files: `server_client.go`, `formation_client.go`, `streaming.go`, `transport.go`, `auth.go`, `errors.go`, `formation_models.go`, `server_models.go`.
+### Project structure
+```
+go/
+├── src/                    # Go module root (run all commands here)
+│   ├── server_client.go    # ServerClient: HMAC auth, formation lifecycle, server logs
+│   ├── formation_client.go # FormationClient: key auth, chat/audio, memory, scheduler, etc.
+│   ├── server_models.go    # Types for server API responses
+│   ├── formation_models.go # Types for formation API responses
+│   ├── transport.go        # HTTP transport, retries, timeouts
+│   ├── streaming.go        # SSE streaming helpers
+│   ├── auth.go             # HMAC signature generation
+│   ├── errors.go           # Typed error hierarchy
+│   ├── version.go          # SDK version constant
+│   └── examples/           # Working examples
+├── AGENTS.md
+├── USER_GUIDE.md
+└── README.md
+```
 
-### Required practices
-- Always format: `gofmt -w <files>` from `go/src`.
-- Always test after code changes: `go test ./...` from `go/src`.
-- Keep auto idempotency header (`X-Muxi-Idempotency-Key`) on **every** request; no opt-outs.
-- Preserve streaming semantics: infinite timeouts for SSE; reuse configured transport; large scanner buffers already set.
-- Respect auth rules: HMAC strips query when signing; client key/admin key headers must remain.
+### Quick commands
+```bash
+cd go/src
+go test ./...              # Run all tests
+gofmt -w .                 # Format code
+go build ./...             # Verify compilation
+```
 
-### Common tasks
-- Add methods using existing patterns (`formationRequest`, `formationRequestNoBody`, `do`, `doJSON`, streaming helpers).
-- Use `decodeFormation`/`decodeServerAPI` to surface `RequestID`/`Timestamp` metadata.
-- For new endpoints, add models in `formation_models.go` or `server_models.go` with `RequestID`/`Timestamp` fields.
+### Key patterns
+- **ServerClient**: HMAC auth with `keyId`/`secretKey` for `/rpc` endpoints
+- **FormationClient**: `X-MUXI-CLIENT-KEY` or `X-MUXI-ADMIN-KEY` headers for `/api/{formation}/v1`
+- **Streaming**: Returns `<-chan T` + `<-chan error`; context cancellation stops streams
+- **Retries**: GET/DELETE only, exponential backoff, respects `Retry-After`
+- **Idempotency**: Auto `X-Muxi-Idempotency-Key` on every request (never remove)
 
-### Git hygiene
-- Check status inside submodule: `git status --short` (from `go`).
-- Commit here first, then update parent pointer from repo root (`git add go`).
+### Adding new endpoints
+1. Add request/response types to `formation_models.go` or `server_models.go`
+2. Add method using existing patterns (`formationRequest`, `do`, `doJSON`)
+3. Include `RequestID`/`Timestamp` fields for metadata
+4. Run `go test ./...` before committing
 
-### Cautions
-- Do not introduce new dependencies without approval.
-- Avoid editing README unless requested.
-- Keep debug logging minimal (method/URL/status/duration only).
+### Git workflow
+```bash
+cd go
+git status --short         # Check changes
+git add . && git commit -m "..."
+git push origin develop
+# Then from sdks root: git add go && git commit -m "Update go submodule"
+```
+
+### Rules
+- Keep idempotency header on every request — no toggles
+- Streaming uses infinite timeouts — no per-request deadlines
+- Do not add dependencies without approval
+- Do not edit README unless requested
+- Format with `gofmt` before committing
+</coding_guidelines>
