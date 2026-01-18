@@ -81,6 +81,54 @@ for stream != nil {
 - Logs/Events: `StreamLogs(filters)`, `StreamEvents(userID)`.
 - Config/admin: `GetAsyncConfig`, `GetAsyncJobs`, `CancelAsyncJob`, `GetA2AConfig`, `GetLoggingConfig`, `GetLoggingDestinations`, `GetOverlordConfig`, `GetOverlordPersona`, `GetLLMSettings`.
 
+### Webhook Verification
+
+For async operations, MUXI delivers results via webhooks. The SDK provides helpers to verify signatures and parse payloads.
+
+```go
+import "github.com/muxi-ai/muxi-go/webhook"
+
+func webhookHandler(w http.ResponseWriter, r *http.Request) {
+    payload, _ := io.ReadAll(r.Body)
+    sig := r.Header.Get("X-Muxi-Signature")
+
+    // Verify signature
+    if err := webhook.VerifySignature(payload, sig, secret); err != nil {
+        http.Error(w, "Invalid signature", 401)
+        return
+    }
+
+    // Parse into typed struct
+    event, err := webhook.Parse(payload)
+    if err != nil {
+        http.Error(w, "Invalid payload", 400)
+        return
+    }
+
+    switch event.Status {
+    case "completed":
+        for _, item := range event.Content {
+            if item.Type == "text" {
+                fmt.Println(item.Text)
+            }
+        }
+    case "failed":
+        fmt.Printf("Error: %s\n", event.Error.Message)
+    case "awaiting_clarification":
+        fmt.Printf("Question: %s\n", event.Clarification.Question)
+    }
+
+    w.WriteHeader(http.StatusOK)
+}
+```
+
+**Webhook Functions:**
+- `webhook.VerifySignature(payload, signature, secret)` - Verify HMAC-SHA256 signature
+- `webhook.VerifySignatureWithTolerance(payload, signature, secret, tolerance)` - Custom time tolerance
+- `webhook.Parse(payload)` - Parse into `*webhook.WebhookEvent`
+
+**WebhookEvent Fields:** `RequestID`, `Status`, `Timestamp`, `Content`, `Error`, `Clarification`, `ProcessingTime`, `Raw`
+
 ### Troubleshooting
 - Connection errors: ensure URL/baseURL and keys are set; for streaming, check proxies/firewalls.
 - 401/403: verify client/admin keys (Formation) or key/secret (Server).
