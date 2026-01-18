@@ -155,7 +155,7 @@ func (c *FormationClient) GetSecret(ctx context.Context, key string) (*SecretRes
 // SetSecret sets a secret value
 func (c *FormationClient) SetSecret(ctx context.Context, key, value string) error {
 	body := map[string]string{"value": value}
-	return formationRequestNoBody(ctx, c, http.MethodPost, "/secrets/"+key, body, true, "")
+	return formationRequestNoBody(ctx, c, http.MethodPut, "/secrets/"+key, body, true, "")
 }
 
 // DeleteSecret deletes a secret
@@ -329,10 +329,6 @@ func (c *FormationClient) ClearSessionBuffer(ctx context.Context, userID, sessio
 	return decodeFormation[SessionBufferClearedResponse](resp)
 }
 
-func (c *FormationClient) GetMemoryBuffers(ctx context.Context) (*MemoryBuffersResponse, error) {
-	return formationRequest[MemoryBuffersResponse](ctx, c, http.MethodGet, "/memory/buffers", nil, true, "")
-}
-
 // GetBufferStats returns aggregate buffer stats (admin).
 func (c *FormationClient) GetBufferStats(ctx context.Context) (*BufferStatsResponse, error) {
 	return formationRequest[BufferStatsResponse](ctx, c, http.MethodGet, "/memory/stats", nil, true, "")
@@ -340,7 +336,7 @@ func (c *FormationClient) GetBufferStats(ctx context.Context) (*BufferStatsRespo
 
 // Scheduler APIs
 func (c *FormationClient) GetSchedulerConfig(ctx context.Context) (*SchedulerConfigResponse, error) {
-	return formationRequest[SchedulerConfigResponse](ctx, c, http.MethodGet, "/scheduler/config", nil, true, "")
+	return formationRequest[SchedulerConfigResponse](ctx, c, http.MethodGet, "/scheduler", nil, true, "")
 }
 
 func (c *FormationClient) GetSchedulerJobs(ctx context.Context, userID string) (*SchedulerJobsResponse, error) {
@@ -381,18 +377,6 @@ func (c *FormationClient) GetAsyncConfig(ctx context.Context) (*AsyncSettingsRes
 	return formationRequest[AsyncSettingsResponse](ctx, c, http.MethodGet, "/async", nil, true, "")
 }
 
-func (c *FormationClient) GetAsyncJobs(ctx context.Context) (*AsyncJobsResponse, error) {
-	return formationRequest[AsyncJobsResponse](ctx, c, http.MethodGet, "/async/jobs", nil, true, "")
-}
-
-func (c *FormationClient) GetAsyncJob(ctx context.Context, jobID string) (*AsyncJobDetailResponse, error) {
-	return formationRequest[AsyncJobDetailResponse](ctx, c, http.MethodGet, "/async/jobs/"+jobID, nil, true, "")
-}
-
-func (c *FormationClient) CancelAsyncJob(ctx context.Context, jobID string) error {
-	return formationRequestNoBody(ctx, c, http.MethodDelete, "/async/jobs/"+jobID, nil, true, "")
-}
-
 func (c *FormationClient) GetA2AConfig(ctx context.Context) (*A2AConfigResponse, error) {
 	return formationRequest[A2AConfigResponse](ctx, c, http.MethodGet, "/a2a", nil, true, "")
 }
@@ -411,12 +395,8 @@ func (c *FormationClient) ListCredentialServices(ctx context.Context) (*Credenti
 }
 
 // User identifiers
-func (c *FormationClient) GetUserIdentifiers(ctx context.Context) (*UserIdentifiersResponse, error) {
-	return formationRequest[UserIdentifiersResponse](ctx, c, http.MethodGet, "/users/identifiers", nil, true, "")
-}
-
 func (c *FormationClient) GetUserIdentifiersForUser(ctx context.Context, userID string) (*UserIdentifiersResponse, error) {
-	return formationRequest[UserIdentifiersResponse](ctx, c, http.MethodGet, "/users/"+userID+"/identifiers", nil, true, "")
+	return formationRequest[UserIdentifiersResponse](ctx, c, http.MethodGet, "/users/identifiers/"+userID, nil, true, "")
 }
 
 func (c *FormationClient) LinkUserIdentifier(ctx context.Context, muxiUserID string, identifiers []interface{}) (*UserIdentifiersResponse, error) {
@@ -430,8 +410,7 @@ func (c *FormationClient) LinkUserIdentifier(ctx context.Context, muxiUserID str
 }
 
 func (c *FormationClient) UnlinkUserIdentifier(ctx context.Context, identifier string) error {
-	path := "/users/identifiers?identifier=" + identifier
-	return formationRequestNoBody(ctx, c, http.MethodDelete, path, nil, true, "")
+	return formationRequestNoBody(ctx, c, http.MethodDelete, "/users/identifiers/"+identifier, nil, true, "")
 }
 
 // Overlord / LLM
@@ -567,10 +546,10 @@ func (c *FormationClient) ResolveUser(ctx context.Context, identifier string, cr
 
 // StreamRequest streams SSE events for a specific request
 func (c *FormationClient) StreamRequest(ctx context.Context, userID, sessionID, requestID string) (<-chan LogStreamEvent, <-chan error) {
-	path := "/stream/" + sessionID + "/" + requestID
+	path := "/events/" + sessionID + "/" + requestID
 	headers := map[string]string{}
 	if userID != "" {
-		headers["X-User-ID"] = userID
+		headers["X-Muxi-User-ID"] = userID
 	}
 	return c.streamLogEvents(ctx, path, headers)
 }
@@ -598,7 +577,7 @@ func (c *FormationClient) StreamLogs(ctx context.Context, filters *LogStreamFilt
 			params.Set("event_type", filters.EventType)
 		}
 	}
-	path := "/logs/stream"
+	path := "/logs"
 	if qs := params.Encode(); qs != "" {
 		path += "?" + qs
 	}

@@ -335,20 +335,6 @@ type SessionBufferClearedResponse struct {
 	Timestamp       int64  `json:"-"`
 }
 
-type MemoryBufferStatus struct {
-	UserID       string `json:"user_id"`
-	SessionCount int    `json:"session_count"`
-	MessageCount int    `json:"message_count"`
-	SizeBytes    int    `json:"size_bytes"`
-}
-
-type MemoryBuffersResponse struct {
-	Buffers   []MemoryBufferStatus `json:"buffers"`
-	Count     int                  `json:"count"`
-	RequestID string               `json:"-"`
-	Timestamp int64                `json:"-"`
-}
-
 // Async / A2A / Logging
 type AsyncSettingsResponse struct {
 	ThresholdSeconds int    `json:"threshold_seconds"`
@@ -359,25 +345,6 @@ type AsyncSettingsResponse struct {
 	RequestID        string `json:"-"`
 	Timestamp        int64  `json:"-"`
 }
-
-type AsyncJob struct {
-	ID        string                 `json:"id"`
-	UserID    string                 `json:"user_id"`
-	Status    string                 `json:"status"`
-	CreatedAt time.Time              `json:"created_at"`
-	Result    map[string]interface{} `json:"result,omitempty"`
-	RequestID string                 `json:"-"`
-	Timestamp int64                  `json:"-"`
-}
-
-type AsyncJobsResponse struct {
-	Jobs      []AsyncJob `json:"jobs"`
-	Count     int        `json:"count"`
-	RequestID string     `json:"-"`
-	Timestamp int64      `json:"-"`
-}
-
-type AsyncJobDetailResponse = AsyncJob
 
 type A2AConfigResponse struct {
 	Inbound struct {
