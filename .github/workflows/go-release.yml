@@ -117,7 +117,7 @@ jobs:
         run: |
           git fetch origin develop
           git checkout develop
-          git merge --ff-only origin/main || git merge --no-ff origin/main -m "chore: sync main to develop"
+          git merge --ff-only origin/main || git merge --no-ff origin/main -m "chore: sync main to develop [skip ci]"
           git push origin develop
         env:
           GIT_AUTHOR_NAME: github-actions[bot]
