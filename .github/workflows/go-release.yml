@@ -97,7 +97,7 @@ jobs:
             git push origin HEAD:main
           fi
 
-      - name: Create tag
+      - name: Create and push git tag
         run: |
           TAG="v$NEXT_VERSION"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
