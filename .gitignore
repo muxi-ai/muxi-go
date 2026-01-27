@@ -1,5 +1,10 @@
 .DS_Store
 
+# AI agent dirs
+.factory/
+.claude/
+.cursor/
+
 # Go build outputs
 *.exe
 *.exe~
