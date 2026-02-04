@@ -14,6 +14,7 @@ type sdkTransport struct {
 	base   http.RoundTripper
 	logger *log.Logger
 	debug  bool
+	app    string
 }
 
 func (t *sdkTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -30,6 +31,11 @@ func (t *sdkTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		req.Header.Set("X-Muxi-Idempotency-Key", uuid.New().String())
 	}
 
+	// Add app header if set (for Console telemetry)
+	if t.app != "" {
+		req.Header.Set("X-Muxi-App", t.app)
+	}
+
 	resp, err := t.base.RoundTrip(req)
 
 	if t.debug && t.logger != nil {
@@ -40,13 +46,18 @@ func (t *sdkTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		t.logger.Printf("[muxi] %s %s -> %d (%v)", req.Method, req.URL.String(), status, time.Since(start))
 	}
 
+	// Check for SDK updates (non-blocking, once per process)
+	if resp != nil {
+		CheckForUpdates(resp)
+	}
+
 	return resp, err
 }
 
 // newSDKTransport creates a new transport with SDK headers
-func newSDKTransport(base http.RoundTripper, logger *log.Logger, debug bool) http.RoundTripper {
+func newSDKTransport(base http.RoundTripper, logger *log.Logger, debug bool, app string) http.RoundTripper {
 	if base == nil {
 		base = http.DefaultTransport
 	}
-	return &sdkTransport{base: base, logger: logger, debug: debug}
+	return &sdkTransport{base: base, logger: logger, debug: debug, app: app}
 }

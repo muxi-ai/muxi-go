@@ -23,6 +23,7 @@ type ServerConfig struct {
 	HTTPClient *http.Client  // optional custom client
 	Debug      bool
 	Logger     *log.Logger
+	App        string // internal: for Console telemetry (undocumented)
 }
 
 // ServerClient is an HTTP client for the MUXI Server management API (formation lifecycle, logs, health).
@@ -51,7 +52,7 @@ func NewServerClient(cfg *ServerConfig) *ServerClient {
 		timeout = 30 * time.Second
 	}
 
-	transport := newSDKTransport(http.DefaultTransport, logger, debug)
+	transport := newSDKTransport(http.DefaultTransport, logger, debug, cfg.App)
 	client := cfg.HTTPClient
 	if client == nil {
 		client = &http.Client{Timeout: timeout, Transport: transport}
@@ -63,7 +64,7 @@ func NewServerClient(cfg *ServerConfig) *ServerClient {
 		}
 		client = &http.Client{
 			Timeout:   client.Timeout,
-			Transport: newSDKTransport(base, logger, debug),
+			Transport: newSDKTransport(base, logger, debug, cfg.App),
 		}
 	}
 

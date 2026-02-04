@@ -29,6 +29,7 @@ type FormationConfig struct {
 	HTTPClient  *http.Client
 	Debug       bool
 	Logger      *log.Logger
+	App         string // internal: for Console telemetry (undocumented)
 }
 
 // FormationClient is an HTTP client for Formation API
@@ -69,7 +70,7 @@ func NewFormationClient(cfg *FormationConfig) *FormationClient {
 		timeout = 30 * time.Second
 	}
 
-	transport := newSDKTransport(http.DefaultTransport, logger, debug)
+	transport := newSDKTransport(http.DefaultTransport, logger, debug, cfg.App)
 	client := cfg.HTTPClient
 	if client == nil {
 		client = &http.Client{Timeout: timeout, Transport: transport}
@@ -78,7 +79,7 @@ func NewFormationClient(cfg *FormationConfig) *FormationClient {
 		if baseTr == nil {
 			baseTr = http.DefaultTransport
 		}
-		client = &http.Client{Timeout: client.Timeout, Transport: newSDKTransport(baseTr, logger, debug)}
+		client = &http.Client{Timeout: client.Timeout, Transport: newSDKTransport(baseTr, logger, debug, cfg.App)}
 	}
 
 	return &FormationClient{
