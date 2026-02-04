@@ -27,8 +27,8 @@ type versionEntry struct {
 
 type versionCache map[string]*versionEntry
 
-func isDevMode() bool {
-	return os.Getenv("MUXI_DEBUG") != ""
+func notificationsDisabled() bool {
+	return os.Getenv("MUXI_SDK_VERSION_NOTIFICATION") == "0"
 }
 
 func getCachePath() string {
@@ -117,7 +117,7 @@ func isNewerVersion(latest, current string) bool {
 // Called once per process, dev mode only.
 func CheckForUpdates(resp *http.Response) {
 	versionCheckOnce.Do(func() {
-		if !isDevMode() {
+		if notificationsDisabled() {
 			return
 		}
 		if resp == nil {
