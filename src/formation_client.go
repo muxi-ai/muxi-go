@@ -29,6 +29,7 @@ type FormationConfig struct {
 	HTTPClient  *http.Client
 	Debug       bool
 	Logger      *log.Logger
+	Mode        string // "live" (default) or "draft" for local dev
 	App         string // internal: for Console telemetry (undocumented)
 }
 
@@ -53,7 +54,11 @@ func NewFormationClient(cfg *FormationConfig) *FormationClient {
 		case cfg.URL != "":
 			base = cfg.URL + "/v1"
 		case cfg.ServerURL != "" && cfg.FormationID != "":
-			base = fmt.Sprintf("%s/api/%s/v1", cfg.ServerURL, cfg.FormationID)
+			prefix := "api"
+			if cfg.Mode == "draft" {
+				prefix = "draft"
+			}
+			base = fmt.Sprintf("%s/%s/%s/v1", cfg.ServerURL, prefix, cfg.FormationID)
 		default:
 			panic("must set BaseURL, URL, or ServerURL+FormationID")
 		}
