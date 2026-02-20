@@ -424,8 +424,8 @@ func (c *FormationClient) GetOverlordConfig(ctx context.Context) (*OverlordConfi
 	return formationRequest[OverlordConfigResponse](ctx, c, http.MethodGet, "/overlord", nil, true, "")
 }
 
-func (c *FormationClient) GetOverlordPersona(ctx context.Context) (*OverlordPersonaResponse, error) {
-	return formationRequest[OverlordPersonaResponse](ctx, c, http.MethodGet, "/overlord/persona", nil, true, "")
+func (c *FormationClient) GetOverlordSoul(ctx context.Context) (*OverlordSoulResponse, error) {
+	return formationRequest[OverlordSoulResponse](ctx, c, http.MethodGet, "/overlord/soul", nil, true, "")
 }
 
 func (c *FormationClient) GetLLMSettings(ctx context.Context) (*LLMSettingsResponse, error) {

@@ -458,8 +458,8 @@ type OverlordConfigResponse struct {
 	Timestamp     int64                  `json:"-"`
 }
 
-type OverlordPersonaResponse struct {
-	Persona   string `json:"persona"`
+type OverlordSoulResponse struct {
+	Soul      string `json:"soul"`
 	RequestID string `json:"-"`
 	Timestamp int64  `json:"-"`
 }

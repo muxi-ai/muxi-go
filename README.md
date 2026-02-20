@@ -209,7 +209,7 @@ client := muxi.NewFormationClient(&muxi.FormationConfig{
 | **Memory** | `GetMemoryConfig`, `GetMemories`, `AddMemory`, `DeleteMemory`, `GetUserBuffer`, `ClearUserBuffer`, `ClearSessionBuffer`, `ClearAllBuffers`, `GetMemoryBuffers`, `GetBufferStats` |
 | **Scheduler** | `GetSchedulerConfig`, `GetSchedulerJobs`, `GetSchedulerJob`, `CreateSchedulerJob`, `DeleteSchedulerJob` |
 | **Async/A2A/Logging** | `GetAsyncConfig`, `GetAsyncJobs`, `GetAsyncJob`, `CancelAsyncJob`, `GetA2AConfig`, `GetLoggingConfig`, `GetLoggingDestinations` |
-| **Overlord/LLM** | `GetOverlordConfig`, `GetOverlordPersona`, `GetLLMSettings` |
+| **Overlord/LLM** | `GetOverlordConfig`, `GetOverlordSoul`, `GetLLMSettings` |
 | **Events/Logs Streaming** | `StreamEvents`, `StreamLogs` |
 
 ## Error Handling

@@ -79,7 +79,7 @@ for stream != nil {
 - Scheduler: `GetSchedulerConfig`, `GetSchedulerJobs`, `GetSchedulerJob`, `CreateSchedulerJob`, `DeleteSchedulerJob`.
 - Requests: `GetRequests`, `GetRequestStatus`, `CancelRequest`, `StreamRequest`.
 - Logs/Events: `StreamLogs(filters)`, `StreamEvents(userID)`.
-- Config/admin: `GetAsyncConfig`, `GetAsyncJobs`, `CancelAsyncJob`, `GetA2AConfig`, `GetLoggingConfig`, `GetLoggingDestinations`, `GetOverlordConfig`, `GetOverlordPersona`, `GetLLMSettings`.
+- Config/admin: `GetAsyncConfig`, `GetAsyncJobs`, `CancelAsyncJob`, `GetA2AConfig`, `GetLoggingConfig`, `GetLoggingDestinations`, `GetOverlordConfig`, `GetOverlordSoul`, `GetLLMSettings`.
 
 ### Webhook Verification
 
