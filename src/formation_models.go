@@ -437,6 +437,12 @@ type SchedulerJobsResponse struct {
 
 type SchedulerJobDetail = SchedulerJob
 
+type SchedulerJobUpdate struct {
+	Message  string `json:"message,omitempty"`
+	Schedule string `json:"schedule,omitempty"`
+	Title    string `json:"title,omitempty"`
+}
+
 // User identifiers
 type UserIdentifiersResponse struct {
 	Identifiers []interface{} `json:"identifiers"`

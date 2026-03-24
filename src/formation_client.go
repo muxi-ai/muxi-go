@@ -378,6 +378,23 @@ func (c *FormationClient) DeleteSchedulerJob(ctx context.Context, jobID string) 
 	return formationRequestNoBody(ctx, c, http.MethodDelete, "/scheduler/jobs/"+jobID, nil, true, "")
 }
 
+func (c *FormationClient) UpdateSchedulerJob(ctx context.Context, jobID string, updates map[string]interface{}) (*SchedulerJobDetail, error) {
+	resp, err := c.doJSON(ctx, http.MethodPut, "/scheduler/jobs/"+jobID, updates, true, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return decodeFormation[SchedulerJobDetail](resp)
+}
+
+func (c *FormationClient) PauseSchedulerJob(ctx context.Context, jobID string) (*SchedulerJobDetail, error) {
+	return formationRequest[SchedulerJobDetail](ctx, c, http.MethodPost, "/scheduler/jobs/"+jobID+"/pause", nil, true, "")
+}
+
+func (c *FormationClient) ResumeSchedulerJob(ctx context.Context, jobID string) (*SchedulerJobDetail, error) {
+	return formationRequest[SchedulerJobDetail](ctx, c, http.MethodPost, "/scheduler/jobs/"+jobID+"/resume", nil, true, "")
+}
+
 // Async / A2A / Logging
 func (c *FormationClient) GetAsyncConfig(ctx context.Context) (*AsyncSettingsResponse, error) {
 	return formationRequest[AsyncSettingsResponse](ctx, c, http.MethodGet, "/async", nil, true, "")
