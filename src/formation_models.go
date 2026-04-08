@@ -136,13 +136,66 @@ type ChatResponse struct {
 
 // ChatChunk represents streaming chat chunk
 type ChatChunk struct {
-	Type         string          `json:"type"` // text, tool_call, tool_result, agent_handoff, thinking, error, done
-	Text         string          `json:"text,omitempty"`
-	ToolCall     json.RawMessage `json:"tool_call,omitempty"`
-	ToolResult   json.RawMessage `json:"tool_result,omitempty"`
-	AgentHandoff json.RawMessage `json:"agent_handoff,omitempty"`
-	Thinking     string          `json:"thinking,omitempty"`
-	Error        string          `json:"error,omitempty"`
+	Type         string                 `json:"type"` // text, tool_call, tool_result, agent_handoff, thinking, error, done
+	Text         string                 `json:"text,omitempty"`
+	Content      json.RawMessage        `json:"content,omitempty"`
+	Response     json.RawMessage        `json:"response,omitempty"`
+	Progress     json.RawMessage        `json:"progress,omitempty"`
+	ToolCall     json.RawMessage        `json:"tool_call,omitempty"`
+	ToolResult   json.RawMessage        `json:"tool_result,omitempty"`
+	AgentHandoff json.RawMessage        `json:"agent_handoff,omitempty"`
+	Thinking     string                 `json:"thinking,omitempty"`
+	Planning     json.RawMessage        `json:"planning,omitempty"`
+	Error        string                 `json:"error,omitempty"`
+	Raw          map[string]interface{} `json:"-"`
+}
+
+func (c *ChatChunk) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	c.Type = decodeOptionalString(raw["type"])
+	c.Text = decodeOptionalString(raw["text"])
+	c.Thinking = decodeOptionalString(raw["thinking"])
+	c.Error = decodeOptionalString(raw["error"])
+	c.Content = cloneRawMessage(raw["content"])
+	c.Response = cloneRawMessage(raw["response"])
+	c.Progress = cloneRawMessage(raw["progress"])
+	c.ToolCall = cloneRawMessage(raw["tool_call"])
+	c.ToolResult = cloneRawMessage(raw["tool_result"])
+	c.AgentHandoff = cloneRawMessage(raw["agent_handoff"])
+	c.Planning = cloneRawMessage(raw["planning"])
+
+	c.Raw = map[string]interface{}{}
+	for key, value := range raw {
+		var decoded interface{}
+		if err := json.Unmarshal(value, &decoded); err != nil {
+			continue
+		}
+		c.Raw[key] = decoded
+	}
+
+	return nil
+}
+
+func decodeOptionalString(data json.RawMessage) string {
+	if len(data) == 0 {
+		return ""
+	}
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return ""
+	}
+	return value
+}
+
+func cloneRawMessage(data json.RawMessage) json.RawMessage {
+	if len(data) == 0 {
+		return nil
+	}
+	return append(json.RawMessage(nil), data...)
 }
 
 // Secrets
