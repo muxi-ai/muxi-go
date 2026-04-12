@@ -69,12 +69,12 @@ func newMuxiError(code, message string, statusCode int) *MuxiError {
 
 // Error codes
 const (
-	ErrUnauthorized     = "UNAUTHORIZED"
-	ErrForbidden        = "FORBIDDEN"
-	ErrNotFound         = "NOT_FOUND"
-	ErrConflict         = "CONFLICT"
-	ErrValidationError  = "VALIDATION_ERROR"
-	ErrRateLimited      = "RATE_LIMITED"
-	ErrServerError      = "SERVER_ERROR"
-	ErrConnectionError  = "CONNECTION_ERROR"
+	ErrUnauthorized    = "UNAUTHORIZED"
+	ErrForbidden       = "FORBIDDEN"
+	ErrNotFound        = "NOT_FOUND"
+	ErrConflict        = "CONFLICT"
+	ErrValidationError = "VALIDATION_ERROR"
+	ErrRateLimited     = "RATE_LIMITED"
+	ErrServerError     = "SERVER_ERROR"
+	ErrConnectionError = "CONNECTION_ERROR"
 )
