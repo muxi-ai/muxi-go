@@ -137,7 +137,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 ### Testing locally
 ```bash
-cd go/src
+cd go
 go test ./...
 ```
 
