@@ -18,7 +18,6 @@ jobs:
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v5
         with:
           go-version: '1.21'
-          cache-dependency-path: src/go.sum
+          cache-dependency-path: go.sum
       - name: Unit tests
-        working-directory: src
         run: go test ./...
