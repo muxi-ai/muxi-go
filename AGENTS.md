@@ -5,18 +5,17 @@ Purpose: fast orientation for AI coding agents contributing to the Go SDK.
 
 ### Project structure
 ```
-go/
-├── src/                    # Go module root (run all commands here)
-│   ├── server_client.go    # ServerClient: HMAC auth, formation lifecycle, server logs
-│   ├── formation_client.go # FormationClient: key auth, chat/audio, memory, scheduler, etc.
-│   ├── server_models.go    # Types for server API responses
-│   ├── formation_models.go # Types for formation API responses
-│   ├── transport.go        # HTTP transport, retries, timeouts
-│   ├── streaming.go        # SSE streaming helpers
-│   ├── auth.go             # HMAC signature generation
-│   ├── errors.go           # Typed error hierarchy
-│   ├── version.go          # SDK version constant
-│   └── examples/           # Working examples
+go/                     # Go module root (run all commands here)
+├── server_client.go    # ServerClient: HMAC auth, formation lifecycle, server logs
+├── formation_client.go # FormationClient: key auth, chat/audio, memory, scheduler, etc.
+├── server_models.go    # Types for server API responses
+├── formation_models.go # Types for formation API responses
+├── transport.go        # HTTP transport, retries, timeouts
+├── streaming.go        # SSE streaming helpers
+├── auth.go             # HMAC signature generation
+├── errors.go           # Typed error hierarchy
+├── version.go          # SDK version constant
+├── examples/           # Working examples
 ├── AGENTS.md
 ├── USER_GUIDE.md
 └── README.md
@@ -24,7 +23,7 @@ go/
 
 ### Quick commands
 ```bash
-cd go/src
+cd go
 go test ./...              # Run all tests
 gofmt -w .                 # Format code
 go build ./...             # Verify compilation
