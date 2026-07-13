@@ -46,6 +46,38 @@ func TestParseChatSSEIgnoresKeepalivesAndSurfacesDone(t *testing.T) {
 	}
 }
 
+func TestParseChatSSEDecodesUIWidgetFrames(t *testing.T) {
+	chunks, err := collectChatChunks(t, ""+
+		"data: {\"type\":\"text\",\"text\":\"Pick one.\"}\n\n"+
+		"event: ui\n"+
+		"data: {\"ui\":[{\"type\":\"options\",\"id\":\"w1\",\"prompt\":\"Which region?\",\"options\":[{\"value\":\"us\",\"label\":\"United States\"}]},{\"type\":\"action_link\",\"id\":\"w2\",\"label\":\"Dashboard\",\"url\":\"https://example.com\"}]}\n\n"+
+		"event: done\n\n",
+	)
+	if err != nil {
+		t.Fatalf("parseChatSSE returned error: %v", err)
+	}
+
+	if len(chunks) != 3 {
+		t.Fatalf("len(chunks) = %d, want 3", len(chunks))
+	}
+	ui := chunks[1]
+	if ui.Type != "ui" {
+		t.Fatalf("chunks[1].Type = %q, want ui", ui.Type)
+	}
+	if len(ui.UI) != 2 {
+		t.Fatalf("len(chunks[1].UI) = %d, want 2", len(ui.UI))
+	}
+	if ui.UI[0].Type != "options" || ui.UI[0].Prompt != "Which region?" || len(ui.UI[0].Options) != 1 {
+		t.Fatalf("options widget = %#v, want prompt + one option", ui.UI[0])
+	}
+	if ui.UI[0].Options[0].Label != "United States" {
+		t.Fatalf("option label = %q, want United States", ui.UI[0].Options[0].Label)
+	}
+	if ui.UI[1].Type != "action_link" || ui.UI[1].URL != "https://example.com" {
+		t.Fatalf("action_link widget = %#v, want url preserved", ui.UI[1])
+	}
+}
+
 func TestParseChatSSESurfacesRouteErrors(t *testing.T) {
 	chunks, err := collectChatChunks(t, ""+
 		": keepalive\n\n"+

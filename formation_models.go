@@ -147,7 +147,29 @@ type ChatChunk struct {
 	Thinking     string                 `json:"thinking,omitempty"`
 	Planning     json.RawMessage        `json:"planning,omitempty"`
 	Error        string                 `json:"error,omitempty"`
+	UI           []UIWidget             `json:"ui,omitempty"`
 	Raw          map[string]interface{} `json:"-"`
+}
+
+// UIOption is one selectable option of an options widget
+type UIOption struct {
+	Value interface{} `json:"value"`
+	Label string      `json:"label"`
+}
+
+// UIWidget is one entry of the response envelope's optional ui array,
+// delivered on streams as an `event: ui` frame before `event: done`.
+// Type is one of "options", "action_link", "mcp_resource"; consumers
+// should ignore unknown types (progressive enhancement).
+type UIWidget struct {
+	Type     string     `json:"type"`
+	ID       string     `json:"id"`
+	Prompt   string     `json:"prompt,omitempty"`
+	Options  []UIOption `json:"options,omitempty"`
+	Label    string     `json:"label,omitempty"`
+	URL      string     `json:"url,omitempty"`
+	Resource string     `json:"resource,omitempty"`
+	MimeType string     `json:"mime_type,omitempty"`
 }
 
 func (c *ChatChunk) UnmarshalJSON(data []byte) error {
@@ -167,6 +189,13 @@ func (c *ChatChunk) UnmarshalJSON(data []byte) error {
 	c.ToolResult = cloneRawMessage(raw["tool_result"])
 	c.AgentHandoff = cloneRawMessage(raw["agent_handoff"])
 	c.Planning = cloneRawMessage(raw["planning"])
+
+	if uiData, ok := raw["ui"]; ok {
+		var widgets []UIWidget
+		if err := json.Unmarshal(uiData, &widgets); err == nil {
+			c.UI = widgets
+		}
+	}
 
 	c.Raw = map[string]interface{}{}
 	for key, value := range raw {
